@@ -1,0 +1,13 @@
+node_modules
+bun.lockb
+npm-debug.log*
+yarn-debug.log*
+.DS_Store
+.git
+.gitignore
+.env*
+.vscode
+coverage
+dist
+build
+prisma/generated 

@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountType {
+  INSTAGRAM
+}
+
+enum TypesOfContentSocialMedia {
+  INSTAGRAM
+}
+
+enum Status {
+  ENABLED
+  DISABLED
+}
+
+model Account {
+  id          String                @id @default(uuid())
+  accountURL  String                @unique
+  accountType AccountType           @default(INSTAGRAM)
+  status      Status                @default(ENABLED)
+  userAccount InstagramUserAccount?
+  history     History[]
+}
+
+model InstagramUserAccount {
+  id                String          @id @default(uuid())
+  username          String          @unique
+  scrapDate         DateTime        @default(now())
+  numberOfPosts     Float           @default(0)
+  followers         Float           @default(0)
+  following         Float           @default(0)
+  linksPosts        String[]
+  profilePictureUrl String?
+  posts             InstagramPost[]
+  account           Account         @relation(fields: [accountId], references: [id])
+  accountId         String          @unique
+}
+
+model InstagramPost {
+  id               String                    @id @default(uuid())
+  link             String?                   @unique
+  media            String[]
+  title            String
+  numberOfLikes    Int?
+  numberOfComments Int?
+  scrapDate        DateTime                  @default(now())
+  postDate         DateTime                  @default(now())
+  comments         Comment[]
+  account          InstagramUserAccount      @relation(fields: [accountId], references: [id])
+  accountId        String
+  type             TypesOfContentSocialMedia @default(INSTAGRAM)
+}
+
+model Comment {
+  id               String        @id @default(uuid())
+  commentOwnerName String
+  comment          String
+  likesOfComment   Int           @default(0)
+  scrapDate        DateTime      @default(now())
+  commentDate      DateTime?
+  post             InstagramPost @relation(fields: [postId], references: [id])
+  postId           String
+
+  originalComment   Comment?  @relation("CommentReplies", fields: [originalCommentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  originalCommentId String?
+  replies           Comment[] @relation("CommentReplies")
+
+  @@index([originalCommentId])
+}
+
+model History {
+  id            String   @id @default(uuid())
+  numberOfPosts Int      @default(0)
+  followers     Float    @default(0)
+  following     Float    @default(0)
+  userName      String
+  scrapDate     DateTime @default(now())
+  account       Account  @relation(fields: [accountId], references: [id])
+  accountId     String
+}
