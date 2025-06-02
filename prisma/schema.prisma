@@ -1,87 +1,168 @@
 generator client {
-  provider = "prisma-client-js"
+    provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
-enum AccountType {
-  INSTAGRAM
+model account_entity {
+    id                       Int                         @id(map: "PK_b482dad15becff9a89ad707dcbe") @default(autoincrement())
+    accountURL               String                      @db.VarChar
+    accountType              String                      @default("INSTAGRAM") @db.VarChar
+    enabled                  account_entity_enabled_enum @default(dbgenerated("1"))
+    history_entity           history_entity[]
+    instagram_user_account   instagram_user_account?
+    overall_account_analysis overall_account_analysis?
 }
 
-enum TypesOfContentSocialMedia {
-  INSTAGRAM
+model avoid_actions {
+    id               Int            @id @default(autoincrement())
+    post_analysis_id Int?
+    avoid_action     String?
+    createdat        DateTime?      @default(now()) @db.Timestamp(6)
+    updatedat        DateTime?      @default(now()) @db.Timestamp(6)
+    post_analysis    post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-enum Status {
-  ENABLED
-  DISABLED
+model comment_analysis {
+    id                Int             @id @default(autoincrement())
+    comment_entity_id Int?            @unique(map: "unique_comment_entity_id")
+    post_id           Int?
+    topic             String?
+    emotion           String?
+    request           String?
+    analyzedat        DateTime?       @default(now()) @db.Timestamp(6)
+    updatedat         DateTime?       @default(now()) @db.Timestamp(6)
+    comment_entity    comment_entity? @relation(fields: [comment_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+    instagram_post    instagram_post? @relation(fields: [post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model Account {
-  id          String                @id @default(uuid())
-  accountURL  String                @unique
-  accountType AccountType           @default(INSTAGRAM)
-  status      Status                @default(ENABLED)
-  userAccount InstagramUserAccount?
-  history     History[]
+model comment_entity {
+    id                   Int               @id(map: "PK_5a439a16c76d63e046765cdb84f") @default(autoincrement())
+    commentOwnerName     String            @db.VarChar
+    comment              String            @db.VarChar
+    likesOfComment       Int?              @default(0)
+    scrapDate            DateTime          @default(now()) @db.Timestamp(6)
+    commentDate          DateTime?         @default(now()) @db.Timestamptz(6)
+    originalCommentId    Int?
+    postId               Int?
+    comment_analysis     comment_analysis?
+    instagram_post       instagram_post?   @relation(fields: [postId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_8149ef6edc077bb121ae704e3a8")
+    comment_entity       comment_entity?   @relation("comment_entityTocomment_entity", fields: [originalCommentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_8a23f564cb621e0a80e85379957")
+    other_comment_entity comment_entity[]  @relation("comment_entityTocomment_entity")
 }
 
-model InstagramUserAccount {
-  id                String          @id @default(uuid())
-  username          String          @unique
-  scrapDate         DateTime        @default(now())
-  numberOfPosts     Float           @default(0)
-  followers         Float           @default(0)
-  following         Float           @default(0)
-  linksPosts        String[]
-  profilePictureUrl String?
-  posts             InstagramPost[]
-  account           Account         @relation(fields: [accountId], references: [id])
-  accountId         String          @unique
+model history_entity {
+    id             Int             @id(map: "PK_bcbd5ec0cdfba7c10e14f068b54") @default(autoincrement())
+    numberOfPosts  Int             @default(0)
+    followers      Int             @default(0)
+    following      Int             @default(0)
+    userName       String          @db.VarChar
+    scrapDate      DateTime        @db.Timestamp(6)
+    accountId      Int?
+    account_entity account_entity? @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_f343483ade9434864a0adf5be17")
 }
 
-model InstagramPost {
-  id               String                    @id @default(uuid())
-  link             String?                   @unique
-  media            String[]
-  title            String
-  numberOfLikes    Int?
-  numberOfComments Int?
-  scrapDate        DateTime                  @default(now())
-  postDate         DateTime                  @default(now())
-  comments         Comment[]
-  account          InstagramUserAccount      @relation(fields: [accountId], references: [id])
-  accountId        String
-  type             TypesOfContentSocialMedia @default(INSTAGRAM)
+model instagram_post {
+    id                     Int                      @id(map: "PK_a0946a290d49ebb27c7684b956d") @default(autoincrement())
+    media                  String
+    title                  String                   @db.VarChar
+    numberOfLikes          Int?
+    numberOfComments       Int?
+    scrapDate              DateTime                 @default(now()) @db.Timestamp(6)
+    postDate               DateTime                 @default(now()) @db.Timestamptz(6)
+    type                   instagram_post_type_enum @default(POST)
+    accountId              Int?
+    link                   String?
+    comment_analysis       comment_analysis[]
+    comment_entity         comment_entity[]
+    instagram_user_account instagram_user_account?  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_aa9e241c18cc32024858f02cfb6")
+    post_analysis          post_analysis?
 }
 
-model Comment {
-  id               String        @id @default(uuid())
-  commentOwnerName String
-  comment          String
-  likesOfComment   Int           @default(0)
-  scrapDate        DateTime      @default(now())
-  commentDate      DateTime?
-  post             InstagramPost @relation(fields: [postId], references: [id])
-  postId           String
-
-  originalComment   Comment?  @relation("CommentReplies", fields: [originalCommentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  originalCommentId String?
-  replies           Comment[] @relation("CommentReplies")
-
-  @@index([originalCommentId])
+model instagram_user_account {
+    id                Int              @id(map: "PK_02fa9f168d5aeedbb1fee8f8aea") @default(autoincrement())
+    username          String           @db.VarChar
+    scrapDate         DateTime         @default(now()) @db.Timestamp(6)
+    linksPosts        String[]
+    profilePictureUrl String?          @db.VarChar
+    accountId         Int?             @unique(map: "REL_f487bf93ea0471fdff8042ad5e")
+    numberOfPosts     Float            @default(0)
+    followers         Float            @default(0)
+    following         Float            @default(0)
+    instagram_post    instagram_post[]
+    account_entity    account_entity?  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_f487bf93ea0471fdff8042ad5ed")
 }
 
-model History {
-  id            String   @id @default(uuid())
-  numberOfPosts Int      @default(0)
-  followers     Float    @default(0)
-  following     Float    @default(0)
-  userName      String
-  scrapDate     DateTime @default(now())
-  account       Account  @relation(fields: [accountId], references: [id])
-  accountId     String
+model keep_doing_actions {
+    id                Int            @id @default(autoincrement())
+    post_analysis_id  Int?
+    keep_doing_action String?
+    createdat         DateTime?      @default(now()) @db.Timestamp(6)
+    updatedat         DateTime?      @default(now()) @db.Timestamp(6)
+    post_analysis     post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model overall_account_analysis {
+    id                 Int             @id @default(autoincrement())
+    account_entity_id  Int?            @unique(map: "unique_account_entity_id")
+    postanaamount      Int?
+    likesaverage       Decimal?        @db.Decimal
+    commentaverage     Decimal?        @db.Decimal
+    poscommentsaverage Decimal?        @db.Decimal
+    negcommentsaverage Decimal?        @db.Decimal
+    engagementrate     Decimal?        @db.Decimal
+    createdat          DateTime?       @default(now()) @db.Timestamp(6)
+    updatedat          DateTime?       @default(now()) @db.Timestamp(6)
+    account_entity     account_entity? @relation(fields: [account_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model post_analysis {
+    id                        Int                  @id @default(autoincrement())
+    post_topic_id             Int?
+    instagram_post_id         Int?                 @unique(map: "unique_instagram_post_id")
+    post_date                 DateTime?            @db.Timestamp(6)
+    comments_amount           BigInt?
+    ammount_negative_comments Int?
+    ammount_positive_comments Int?
+    ammount_neutral_comments  Int?
+    general_emotion           String?
+    createdat                 DateTime?            @default(now()) @db.Timestamp(6)
+    updatedat                 DateTime?            @default(now()) @db.Timestamp(6)
+    post_engagement           Decimal?             @db.Decimal
+    avoid_actions             avoid_actions[]
+    keep_doing_actions        keep_doing_actions[]
+    instagram_post            instagram_post?      @relation(fields: [instagram_post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+    post_topic                post_topic?          @relation(fields: [post_topic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+    recommendations           recommendations[]
+}
+
+model post_topic {
+    id            Int             @id @default(autoincrement())
+    emoji         String
+    topic         String
+    description   String?
+    createdat     DateTime?       @default(now()) @db.Timestamp(6)
+    post_analysis post_analysis[]
+}
+
+model recommendations {
+    id               Int            @id @default(autoincrement())
+    post_analysis_id Int?
+    recommendation   String?
+    createdat        DateTime?      @default(now()) @db.Timestamp(6)
+    updatedat        DateTime?      @default(now()) @db.Timestamp(6)
+    post_analysis    post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+enum instagram_post_type_enum {
+    POST
+    REEL
+}
+
+enum account_entity_enabled_enum {
+    TRUE  @map("1")
+    FALSE @map("0")
 }

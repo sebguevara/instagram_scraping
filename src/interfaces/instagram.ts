@@ -1,25 +1,25 @@
 export interface InstagramPostDetails {
-  title: string;
-  imgElements: string[];
-  allCom: Comment[];
-  videoElements: [];
-  numberOfComments: number;
-  likes: number;
-  datePost: string;
+  title: string
+  imgElements: string[]
+  allCom: Comment[]
+  videoElements: []
+  numberOfComments: number
+  likes: number
+  datePost: string
 }
 
 export interface Comment {
-  commentDate: string;
-  owner: string;
-  finalComment: string;
-  likesNumber: number;
-  responses?: ResponseComment[];
+  commentDate: string
+  owner: string
+  finalComment: string
+  likesNumber: number
+  responses?: ResponseComment[]
 }
 export interface ResponseComment {
-  originalOwnerOfComment: string;
-  owner: string;
-  finalComment: string;
-  commentDate: string;
+  originalOwnerOfComment: string
+  owner: string
+  finalComment: string
+  commentDate: string
 }
 
 export enum TypesOfContentSocialMedia {
@@ -35,14 +35,14 @@ export enum AccountType {
 }
 
 export interface AllData {
-  posts: number;
-  following: number;
-  followers: number;
-  links: string[];
-  profileImg: string;
+  posts: number
+  following: number
+  followers: number
+  links: string[]
+  profileImg: string
 }
 
 export interface UserCredentials {
-  instagramUsername: string;
-  instagramPassword: string;
+  instagramUsername: string
+  instagramPassword: string
 }

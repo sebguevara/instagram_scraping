@@ -1,13 +1,12 @@
 import type { Response, Request } from 'express'
-import { InstagramService } from '../services/instagram.service'
+import { getInstagramProfileData } from '@/services/instagram.service'
 
-const instagramService = new InstagramService()
-
-export const getInstagramData = async (req: Request, res: Response) => {
-    try {
-        const data = await instagramService.getInstagramData()
-        res.status(200).json(data)
-    } catch (error: unknown) {
-        res.status(500).json({ message: (error as Error).message })
-    }
+export const getInstagramProfileDataController = async (req: Request, res: Response) => {
+  try {
+    const data = await getInstagramProfileData()
+    res.status(200).json(data)
+  } catch (error: unknown) {
+    console.error(error)
+    res.status(500).json({ message: (error as Error).message })
+  }
 }
