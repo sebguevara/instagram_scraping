@@ -26,7 +26,7 @@ const getCreatedPosts = async (accountsMap: Map<string | null, number>) => {
   const { defaultDatasetId } = await apifyClient.actor(APIFY_ACTORS.POST_ACTOR).call({
     username: Array.from(accountsMap.keys()),
     skipPinnedPosts: true,
-    onlyPostsNewerThan: '4 days',
+    onlyPostsNewerThan: '1 days',
   })
 
   const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
@@ -39,17 +39,16 @@ const getCreatedPosts = async (accountsMap: Map<string | null, number>) => {
     where: { link: { in: dataFiltered.map((item) => item.url) } },
   })
 
-  const postsFiltered = dataFiltered.filter((item) => !posts.some((post) => post.link === item.url))
-  if (postsFiltered.length <= 0) throw new Error('No posts to create')
+  let postsFiltered: ApifyPostResponse[] = dataFiltered
+  if (posts.length > 0) {
+    postsFiltered = dataFiltered.filter((item) => !posts.some((post) => post.link === item.url))
+  }
 
   const postsToCreate = postsFiltered.map((item) =>
     mapApifyPostToPost(item, accountsMap.get(item.ownerUsername)!)
   )
 
-  await prisma.instagram_post.createMany({
-    data: postsToCreate,
-    skipDuplicates: true,
-  })
+  await prisma.instagram_post.createMany({ data: postsToCreate })
 
   const postsCreated = (await prisma.instagram_post.findMany({
     where: { link: { in: data.map((item) => item.url) } },
@@ -78,10 +77,7 @@ const getCreatedComments = async (posts: PostEntity[]) => {
 
   if (commentsToCreate.length <= 0) throw new Error('No comments to create')
 
-  const createdComments = (await prisma.comment_entity.createMany({
-    data: commentsToCreate,
-    skipDuplicates: true,
-  })) as unknown as CommentEntity[]
+  const createdComments = await prisma.comment_entity.createMany({ data: commentsToCreate })
 
-  return createdComments
+  return createdComments as unknown as CommentEntity[]
 }

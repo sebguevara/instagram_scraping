@@ -1,168 +1,307 @@
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model account_entity {
-    id                       Int                         @id(map: "PK_b482dad15becff9a89ad707dcbe") @default(autoincrement())
-    accountURL               String                      @db.VarChar
-    accountType              String                      @default("INSTAGRAM") @db.VarChar
-    enabled                  account_entity_enabled_enum @default(dbgenerated("1"))
-    history_entity           history_entity[]
-    instagram_user_account   instagram_user_account?
-    overall_account_analysis overall_account_analysis?
+  id                       Int                         @id(map: "PK_b482dad15becff9a89ad707dcbe") @default(autoincrement())
+  accountURL               String                      @db.VarChar
+  accountType              String                      @default("INSTAGRAM") @db.VarChar
+  enabled                  account_entity_enabled_enum @default(TRUE)
+  history_entity           history_entity[]
+  instagram_user_account   instagram_user_account?
+  overall_account_analysis overall_account_analysis?
 }
 
 model avoid_actions {
-    id               Int            @id @default(autoincrement())
-    post_analysis_id Int?
-    avoid_action     String?
-    createdat        DateTime?      @default(now()) @db.Timestamp(6)
-    updatedat        DateTime?      @default(now()) @db.Timestamp(6)
-    post_analysis    post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id               Int            @id @default(autoincrement())
+  post_analysis_id Int?
+  avoid_action     String?
+  createdat        DateTime?      @default(now()) @db.Timestamp(6)
+  updatedat        DateTime?      @default(now()) @db.Timestamp(6)
+  post_analysis    post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model comment_analysis {
-    id                Int             @id @default(autoincrement())
-    comment_entity_id Int?            @unique(map: "unique_comment_entity_id")
-    post_id           Int?
-    topic             String?
-    emotion           String?
-    request           String?
-    analyzedat        DateTime?       @default(now()) @db.Timestamp(6)
-    updatedat         DateTime?       @default(now()) @db.Timestamp(6)
-    comment_entity    comment_entity? @relation(fields: [comment_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-    instagram_post    instagram_post? @relation(fields: [post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                Int             @id @default(autoincrement())
+  comment_entity_id Int?            @unique(map: "unique_comment_entity_id")
+  post_id           Int?
+  topic             String?
+  emotion           String?
+  request           String?
+  analyzedat        DateTime?       @default(now()) @db.Timestamp(6)
+  updatedat         DateTime?       @default(now()) @db.Timestamp(6)
+  comment_entity    comment_entity? @relation(fields: [comment_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  instagram_post    instagram_post? @relation(fields: [post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model comment_entity {
-    id                   Int               @id(map: "PK_5a439a16c76d63e046765cdb84f") @default(autoincrement())
-    commentOwnerName     String            @db.VarChar
-    comment              String            @db.VarChar
-    likesOfComment       Int?              @default(0)
-    scrapDate            DateTime          @default(now()) @db.Timestamp(6)
-    commentDate          DateTime?         @default(now()) @db.Timestamptz(6)
-    originalCommentId    Int?
-    postId               Int?
-    comment_analysis     comment_analysis?
-    instagram_post       instagram_post?   @relation(fields: [postId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_8149ef6edc077bb121ae704e3a8")
-    comment_entity       comment_entity?   @relation("comment_entityTocomment_entity", fields: [originalCommentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_8a23f564cb621e0a80e85379957")
-    other_comment_entity comment_entity[]  @relation("comment_entityTocomment_entity")
+  id                   Int               @id(map: "PK_5a439a16c76d63e046765cdb84f") @default(autoincrement())
+  commentOwnerName     String            @db.VarChar
+  comment              String            @db.VarChar
+  likesOfComment       Int?              @default(0)
+  scrapDate            DateTime          @default(now()) @db.Timestamp(6)
+  commentDate          DateTime?         @default(now()) @db.Timestamptz(6)
+  originalCommentId    Int?
+  postId               Int?
+  comment_analysis     comment_analysis?
+  instagram_post       instagram_post?   @relation(fields: [postId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_8149ef6edc077bb121ae704e3a8")
+  comment_entity       comment_entity?   @relation("comment_entityTocomment_entity", fields: [originalCommentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_8a23f564cb621e0a80e85379957")
+  other_comment_entity comment_entity[]  @relation("comment_entityTocomment_entity")
 }
 
 model history_entity {
-    id             Int             @id(map: "PK_bcbd5ec0cdfba7c10e14f068b54") @default(autoincrement())
-    numberOfPosts  Int             @default(0)
-    followers      Int             @default(0)
-    following      Int             @default(0)
-    userName       String          @db.VarChar
-    scrapDate      DateTime        @db.Timestamp(6)
-    accountId      Int?
-    account_entity account_entity? @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_f343483ade9434864a0adf5be17")
+  id             Int             @id(map: "PK_bcbd5ec0cdfba7c10e14f068b54") @default(autoincrement())
+  numberOfPosts  Int             @default(0)
+  followers      Int             @default(0)
+  following      Int             @default(0)
+  userName       String          @db.VarChar
+  scrapDate      DateTime        @db.Timestamp(6)
+  accountId      Int?
+  account_entity account_entity? @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_f343483ade9434864a0adf5be17")
 }
 
 model instagram_post {
-    id                     Int                      @id(map: "PK_a0946a290d49ebb27c7684b956d") @default(autoincrement())
-    media                  String
-    title                  String                   @db.VarChar
-    numberOfLikes          Int?
-    numberOfComments       Int?
-    scrapDate              DateTime                 @default(now()) @db.Timestamp(6)
-    postDate               DateTime                 @default(now()) @db.Timestamptz(6)
-    type                   instagram_post_type_enum @default(POST)
-    accountId              Int?
-    link                   String?
-    comment_analysis       comment_analysis[]
-    comment_entity         comment_entity[]
-    instagram_user_account instagram_user_account?  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_aa9e241c18cc32024858f02cfb6")
-    post_analysis          post_analysis?
+  id                     Int                      @id(map: "PK_a0946a290d49ebb27c7684b956d") @default(autoincrement())
+  media                  String
+  title                  String                   @db.VarChar
+  numberOfLikes          Int?
+  numberOfComments       Int?
+  scrapDate              DateTime                 @default(now()) @db.Timestamp(6)
+  postDate               DateTime                 @default(now()) @db.Timestamptz(6)
+  type                   instagram_post_type_enum @default(POST)
+  accountId              Int?
+  link                   String?
+  comment_analysis       comment_analysis[]
+  comment_entity         comment_entity[]
+  instagram_user_account instagram_user_account?  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_aa9e241c18cc32024858f02cfb6")
+  post_analysis          post_analysis?
 }
 
 model instagram_user_account {
-    id                Int              @id(map: "PK_02fa9f168d5aeedbb1fee8f8aea") @default(autoincrement())
-    username          String           @db.VarChar
-    scrapDate         DateTime         @default(now()) @db.Timestamp(6)
-    linksPosts        String[]
-    profilePictureUrl String?          @db.VarChar
-    accountId         Int?             @unique(map: "REL_f487bf93ea0471fdff8042ad5e")
-    numberOfPosts     Float            @default(0)
-    followers         Float            @default(0)
-    following         Float            @default(0)
-    instagram_post    instagram_post[]
-    account_entity    account_entity?  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_f487bf93ea0471fdff8042ad5ed")
+  id                Int              @id(map: "PK_02fa9f168d5aeedbb1fee8f8aea") @default(autoincrement())
+  username          String           @db.VarChar
+  scrapDate         DateTime         @default(now()) @db.Timestamp(6)
+  linksPosts        String[]
+  profilePictureUrl String?          @db.VarChar
+  accountId         Int?             @unique(map: "REL_f487bf93ea0471fdff8042ad5e")
+  numberOfPosts     Float            @default(0)
+  followers         Float            @default(0)
+  following         Float            @default(0)
+  instagram_post    instagram_post[]
+  account_entity    account_entity?  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_f487bf93ea0471fdff8042ad5ed")
 }
 
 model keep_doing_actions {
-    id                Int            @id @default(autoincrement())
-    post_analysis_id  Int?
-    keep_doing_action String?
-    createdat         DateTime?      @default(now()) @db.Timestamp(6)
-    updatedat         DateTime?      @default(now()) @db.Timestamp(6)
-    post_analysis     post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                Int            @id @default(autoincrement())
+  post_analysis_id  Int?
+  keep_doing_action String?
+  createdat         DateTime?      @default(now()) @db.Timestamp(6)
+  updatedat         DateTime?      @default(now()) @db.Timestamp(6)
+  post_analysis     post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model overall_account_analysis {
-    id                 Int             @id @default(autoincrement())
-    account_entity_id  Int?            @unique(map: "unique_account_entity_id")
-    postanaamount      Int?
-    likesaverage       Decimal?        @db.Decimal
-    commentaverage     Decimal?        @db.Decimal
-    poscommentsaverage Decimal?        @db.Decimal
-    negcommentsaverage Decimal?        @db.Decimal
-    engagementrate     Decimal?        @db.Decimal
-    createdat          DateTime?       @default(now()) @db.Timestamp(6)
-    updatedat          DateTime?       @default(now()) @db.Timestamp(6)
-    account_entity     account_entity? @relation(fields: [account_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                 Int             @id @default(autoincrement())
+  account_entity_id  Int?            @unique(map: "unique_account_entity_id")
+  postanaamount      Int?
+  likesaverage       Decimal?        @db.Decimal
+  commentaverage     Decimal?        @db.Decimal
+  poscommentsaverage Decimal?        @db.Decimal
+  negcommentsaverage Decimal?        @db.Decimal
+  engagementrate     Decimal?        @db.Decimal
+  createdat          DateTime?       @default(now()) @db.Timestamp(6)
+  updatedat          DateTime?       @default(now()) @db.Timestamp(6)
+  account_entity     account_entity? @relation(fields: [account_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model post_analysis {
-    id                        Int                  @id @default(autoincrement())
-    post_topic_id             Int?
-    instagram_post_id         Int?                 @unique(map: "unique_instagram_post_id")
-    post_date                 DateTime?            @db.Timestamp(6)
-    comments_amount           BigInt?
-    ammount_negative_comments Int?
-    ammount_positive_comments Int?
-    ammount_neutral_comments  Int?
-    general_emotion           String?
-    createdat                 DateTime?            @default(now()) @db.Timestamp(6)
-    updatedat                 DateTime?            @default(now()) @db.Timestamp(6)
-    post_engagement           Decimal?             @db.Decimal
-    avoid_actions             avoid_actions[]
-    keep_doing_actions        keep_doing_actions[]
-    instagram_post            instagram_post?      @relation(fields: [instagram_post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-    post_topic                post_topic?          @relation(fields: [post_topic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-    recommendations           recommendations[]
+  id                        Int                  @id @default(autoincrement())
+  post_topic_id             Int?
+  instagram_post_id         Int?                 @unique(map: "unique_instagram_post_id")
+  post_date                 DateTime?            @db.Timestamp(6)
+  comments_amount           BigInt?
+  ammount_negative_comments Int?
+  ammount_positive_comments Int?
+  ammount_neutral_comments  Int?
+  general_emotion           String?
+  createdat                 DateTime?            @default(now()) @db.Timestamp(6)
+  updatedat                 DateTime?            @default(now()) @db.Timestamp(6)
+  post_engagement           Decimal?             @db.Decimal
+  avoid_actions             avoid_actions[]
+  keep_doing_actions        keep_doing_actions[]
+  instagram_post            instagram_post?      @relation(fields: [instagram_post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  post_topic                post_topic?          @relation(fields: [post_topic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  recommendations           recommendations[]
 }
 
 model post_topic {
-    id            Int             @id @default(autoincrement())
-    emoji         String
-    topic         String
-    description   String?
-    createdat     DateTime?       @default(now()) @db.Timestamp(6)
-    post_analysis post_analysis[]
+  id            Int             @id @default(autoincrement())
+  emoji         String
+  topic         String
+  description   String?
+  createdat     DateTime?       @default(now()) @db.Timestamp(6)
+  post_analysis post_analysis[]
 }
 
 model recommendations {
-    id               Int            @id @default(autoincrement())
-    post_analysis_id Int?
-    recommendation   String?
-    createdat        DateTime?      @default(now()) @db.Timestamp(6)
-    updatedat        DateTime?      @default(now()) @db.Timestamp(6)
-    post_analysis    post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id               Int            @id @default(autoincrement())
+  post_analysis_id Int?
+  recommendation   String?
+  createdat        DateTime?      @default(now()) @db.Timestamp(6)
+  updatedat        DateTime?      @default(now()) @db.Timestamp(6)
+  post_analysis    post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model base_habilitaciones {
+  id_habilitacion Decimal? @db.Decimal(255, 0)
+  apellido        String?  @db.VarChar(255)
+  nombres         String?  @db.VarChar(255)
+  cuil_tipo       String?  @db.VarChar(255)
+  dni             String?  @db.VarChar(255)
+  cuil_digito     String?  @db.VarChar(255)
+  fe_nac          String?  @db.VarChar(255)
+  id_persona_sim  Decimal? @db.Decimal(255, 0)
+  otro_dato_domi  String?  @db.VarChar(255)
+  telefono        String?  @db.VarChar(255)
+  punto_geom      String?  @db.VarChar(255)
+  email           String?  @db.VarChar(255)
+  fe_emision      String?  @db.VarChar(255)
+  obs             String?  @db.VarChar(255)
+
+  @@ignore
+}
+
+model base_sac {
+  id_contacto         BigInt  @id(map: "id_contacto")
+  id_problema         String? @db.VarChar(255)
+  id_tipo_contacto    String? @db.VarChar(255)
+  descripcion         String? @db.VarChar(255)
+  fecha_hora_contacto String? @db.VarChar(255)
+  riesgo              String? @db.VarChar(255)
+  descr_problema      String? @db.VarChar(255)
+  via                 String? @db.VarChar(255)
+  riesgo_descr        String? @db.VarChar(255)
+  documento           String? @db.VarChar(255)
+  nombre_contacto     String? @db.VarChar(255)
+  id_area             String? @db.VarChar(255)
+  lugar_problema      String? @db.VarChar(255)
+  severidad           String? @db.VarChar(255)
+  id_asignacion       String? @db.VarChar(255)
+  id_tipo_cierre      String? @db.VarChar(255)
+  definitivo          String? @db.VarChar(255)
+  id_reiteracion      String? @db.VarChar(255)
+  ubi_punto           String? @db.VarChar(255)
+  id_persona          String? @db.VarChar(255)
+  accion              String? @db.VarChar(255)
+  no_asignado         String? @db.VarChar(255)
+  cerrado             String? @db.VarChar(255)
+  estado              String? @db.VarChar(255)
+  id_barrio           String? @db.VarChar(255)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model comparsas {
+  orden             String?   @db.VarChar(255)
+  apellido_nombre   String?   @db.VarChar(255)
+  fecha_nacimiento  String?   @db.VarChar(255)
+  dni               String?   @db.VarChar(255)
+  comparsa          String?   @db.VarChar(255)
+  dni2              String?
+  fecha_nacimiento2 DateTime? @db.Date
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model licencias_vencen_10_04_24 {
+  Columna1          String? @db.VarChar(255)
+  instancia         String? @db.VarChar(255)
+  usuario           String? @db.VarChar(255)
+  fecha_creacion    String? @map("fecha creacion") @db.VarChar(255)
+  categoria         String? @db.VarChar(255)
+  documento         String? @db.VarChar(255)
+  licencia          String? @db.VarChar(255)
+  apellido          String? @db.VarChar(255)
+  nombre            String? @db.VarChar(255)
+  fecha_inicio      String? @map("fecha inicio") @db.VarChar(255)
+  fecha_vencimiento String? @map("fecha vencimiento") @db.VarChar(255)
+
+  @@ignore
+}
+
+model origen {
+  dni               String  @id(map: "pk_dni") @db.VarChar(10)
+  clase             String? @db.VarChar(6)
+  edad              String? @db.VarChar(3)
+  categoria_edad    String? @db.VarChar(30)
+  apellido          String? @db.VarChar(50)
+  nombre            String? @db.VarChar(50)
+  domicilio         String? @db.VarChar(150)
+  tipo_ejemplar     String? @db.VarChar(30)
+  circ_numero       String? @db.VarChar(30)
+  establecimiento   String? @db.VarChar(150)
+  nro_mesa          String? @db.VarChar(5)
+  orden_mesa        String? @db.VarChar(6)
+  genero            String? @db.VarChar(50)
+  situacion_laboral String? @db.VarChar(100)
+  impuesto_rural    String? @db.VarChar(100)
+  vehiculo          String? @db.VarChar(150)
+  vehiculo_a_o      String? @map("vehiculo_año") @db.VarChar(5)
+  beneficio         String? @db.VarChar(50)
+  antiguedad        String? @db.VarChar(3)
+  cuotapaga         String? @db.VarChar(10)
+  padron_regatas    String? @db.VarChar(15)
+  telefono          String? @db.VarChar(20)
+  telefono_2        String? @db.VarChar(25)
+  telefono_3        String? @db.VarChar(25)
+  telefono_4        String? @db.VarChar(25)
+  telefono_5        String? @db.VarChar(25)
+  telefono_6        String? @db.VarChar(25)
+  telefono_7        String? @db.VarChar(25)
+  telefono_8        String? @db.VarChar(25)
+  telefono_9        String? @db.VarChar(25)
+  telefono_10       String? @db.VarChar(25)
+  telefono_11       String? @db.VarChar(25)
+  telefono_12       String? @db.VarChar(25)
+  telefono_13       String? @db.VarChar(25)
+  telefono_14       String? @db.VarChar(25)
+  telefono_15       String? @db.VarChar(25)
+  telefono_16       String? @db.VarChar(25)
+  mail              String? @db.VarChar(200)
+  mail_2            String? @db.VarChar(200)
+  mail_3            String? @db.VarChar(200)
+  mail_4            String? @db.VarChar(200)
+  mail_5            String? @db.VarChar(200)
+  circuito          String? @db.VarChar(25)
+  barrio            String? @db.VarChar(80)
+  grupo_problema    String? @db.VarChar(200)
+  problema          String? @db.VarChar(200)
+  niveleducativo    String? @db.VarChar(150)
+  localidad         String? @db.VarChar(150)
+  departamento      String? @db.VarChar(150)
+  envio_celular     String? @db.VarChar(15)
+  cantidad_envios   String? @db.VarChar(8)
+  sube              String? @db.VarChar(15)
+  dominio           String? @db.VarChar(25)
+  sorteos           String? @db.VarChar(25)
+  algun_sorteo      String? @db.VarChar(25)
+  lat               String? @db.VarChar(30)
+  lng               String? @db.VarChar(30)
 }
 
 enum instagram_post_type_enum {
-    POST
-    REEL
+  POST
+  REEL
 }
 
 enum account_entity_enabled_enum {
-    TRUE  @map("1")
-    FALSE @map("0")
+  TRUE  @map("1")
+  FALSE @map("0")
 }
