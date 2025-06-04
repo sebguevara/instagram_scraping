@@ -1,4 +1,12 @@
+export interface AccountEntity {
+  id?: number
+  accountURL: string
+  accountType: string
+  enabled: string
+}
+
 export interface HistoryEntity {
+  id?: number
   userName: string
   numberOfPosts: number
   followers: number

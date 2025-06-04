@@ -1,9 +1,20 @@
 import type { Response, Request } from 'express'
-import { getInstagramProfileData } from '@/services/instagram.service'
+import { createProfileHistory } from '@/services/profile.service'
+import { createPostComments } from '@/services/post.service'
 
-export const getInstagramProfileDataController = async (req: Request, res: Response) => {
+export const createProfileHistoryController = async (req: Request, res: Response) => {
   try {
-    const data = await getInstagramProfileData()
+    const data = await createProfileHistory()
+    res.status(200).json(data)
+  } catch (error: unknown) {
+    console.error(error)
+    res.status(500).json({ message: (error as Error).message })
+  }
+}
+
+export const createPostCommentsController = async (req: Request, res: Response) => {
+  try {
+    const data = await createPostComments()
     res.status(200).json(data)
   } catch (error: unknown) {
     console.error(error)

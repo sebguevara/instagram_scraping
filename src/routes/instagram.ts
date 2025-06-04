@@ -1,8 +1,12 @@
 import { Router } from 'express'
-import { getInstagramProfileDataController } from '@/controllers/instagram.controller'
+import {
+  createPostCommentsController,
+  createProfileHistoryController,
+} from '@/controllers/instagram.controller'
 
 const router = Router()
 
-router.get('/profile', getInstagramProfileDataController)
+router.get('/profile', createProfileHistoryController)
+router.get('/post', createPostCommentsController)
 
 export default router
