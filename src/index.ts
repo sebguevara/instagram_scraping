@@ -5,7 +5,7 @@ import cors from 'cors'
 import indexRoutes from './routes/index'
 
 const app: express.Application = express()
-const port: number = parseInt(process.env.PORT || '4000')
+const port: number = parseInt(process.env.PORT || '4200')
 const server = createServer(app)
 
 const startServer = (callback: () => void) => {
