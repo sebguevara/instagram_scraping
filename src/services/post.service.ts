@@ -26,7 +26,7 @@ const getCreatedPosts = async (accountsMap: Map<string | null, number>) => {
   const { defaultDatasetId } = await apifyClient.actor(APIFY_ACTORS.POST_ACTOR).call({
     username: Array.from(accountsMap.keys()),
     skipPinnedPosts: true,
-    onlyPostsNewerThan: '1 days',
+    onlyPostsNewerThan: '5 days',
   })
 
   const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
