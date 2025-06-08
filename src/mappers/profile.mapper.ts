@@ -33,8 +33,6 @@ export const mapUserToPrisma = (
   return {
     followers: history.followers,
     following: history.following,
-    username: history.userName,
-    accountId: history.accountId,
     numberOfPosts: history.numberOfPosts,
     profilePictureUrl: profileData.profilePicUrl,
     scrapDate: history.scrapDate,
