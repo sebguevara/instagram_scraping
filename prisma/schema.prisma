@@ -48,6 +48,7 @@ model comment_entity {
   commentDate          DateTime?         @default(now()) @db.Timestamptz(6)
   originalCommentId    Int?
   postId               Int?
+  instagramid          String?           @db.VarChar
   comment_analysis     comment_analysis?
   instagram_post       instagram_post?   @relation(fields: [postId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_8149ef6edc077bb121ae704e3a8")
   comment_entity       comment_entity?   @relation("comment_entityTocomment_entity", fields: [originalCommentId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_8a23f564cb621e0a80e85379957")

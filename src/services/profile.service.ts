@@ -1,9 +1,8 @@
-import { prisma } from '@/config/prisma'
-import { getUsername } from '@/utils/get_username'
-import { mapApifyProfileToUser, mapUserToPrisma } from '@/mappers/profile.mapper'
-import { apifyClient } from '@/config/apify'
+import { apifyClient, prisma } from '@/config'
 import { APIFY_ACTORS } from '@/const'
-import type { AccountEntity, ApifyProfileResponse, HistoryEntity } from '@/interfaces/profile'
+import { mapApifyProfileToUser, mapUserToPrisma } from '@/mappers'
+import { getUsername } from '@/utils'
+import type { AccountEntity, ApifyProfileResponse, HistoryEntity } from '@/interfaces'
 
 export const createProfileHistory = async () => {
   const accounts = (await prisma.account_entity.findMany({
