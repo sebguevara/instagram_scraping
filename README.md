@@ -34,11 +34,32 @@ bun install
 
 ### 3. Set up environment variables
 
-Create a `.env` file in the project root with your PostgreSQL `DATABASE_URL`:
+Create a `.env` file in the project root with the following variables:
 
 ```env
+# PostgreSQL connection string
 DATABASE_URL=postgresql://user:password@host:port/db_name
+
+# Apify API token (required for scraping)
+APIFY_TOKEN=your_apify_token_here
+
+# OpenAI API key (required for comment/topic analysis)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Optional: Port for the Express server
+PORT=4200
+
+# Optional: Node environment
+NODE_ENV=development
 ```
+
+**Variable descriptions:**
+
+- `DATABASE_URL`: Connection string for your PostgreSQL database.
+- `APIFY_TOKEN`: Your Apify API token to authenticate requests.
+- `OPENAI_API_KEY`: Your OpenAI API key for comment and topic analysis.
+- `PORT`: The port on which the Express server will run (default: 4000).
+- `NODE_ENV`: Set to `development` or `production` as needed.
 
 ### 4. Run migrations and generate Prisma client
 

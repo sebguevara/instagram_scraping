@@ -17,7 +17,7 @@ COPY . .
 RUN bunx prisma generate
 
 # Expose port (adjust if using another)
-EXPOSE 4000
+EXPOSE 4200
 
 # Command to start the app
 CMD ["bun", "start"]

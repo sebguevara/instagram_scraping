@@ -1,0 +1,222 @@
+import { apifyClient, prisma } from '@/config'
+import { getPostEngagement, getPostTopic, getUsername } from '@/utils'
+import { createComments } from './comment.repo'
+import { APIFY_ACTORS, POST_ACTOR_PARAMS } from '@/const'
+import { mapApifyPostToPost } from '@/mappers'
+import type {
+  AccountEntity,
+  ApifyPostResponse,
+  CommentAnalysisEntity,
+  PostAnalysis,
+  PostEntity,
+  PostTopic,
+} from '@/interfaces'
+
+/**
+ * Retrieves posts from enabled accounts, maps and saves them to the database.
+ * Calls the Apify actor to get posts, filters and maps the data,
+ * updates existing posts and creates new ones in the database.
+ * @returns {Promise<PostEntity[]>} List of posts obtained and stored in the database
+ * @throws {Error} If no post data is found or if an unexpected error occurs
+ */
+export const getPosts = async (): Promise<PostEntity[]> => {
+  try {
+    // Get enabled accounts from the database
+    const accounts = (await prisma.account_entity.findMany({
+      where: { enabled: 'TRUE' },
+      include: { instagram_user_account: true },
+    })) as unknown as AccountEntity[]
+
+    // Map usernames to their account IDs
+    const accountsMap = new Map(
+      accounts.map((account) => [getUsername(account.accountURL), account.id])
+    ) as Map<string | null, number>
+
+    // Call Apify actor to get user posts
+    const { defaultDatasetId } = await apifyClient.actor(APIFY_ACTORS.POST_ACTOR).call({
+      username: Array.from(accountsMap.keys()),
+      ...POST_ACTOR_PARAMS,
+    })
+
+    // Get items (posts) from the Apify dataset
+    const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
+    const data = items as unknown as ApifyPostResponse[]
+
+    if (data.length <= 0) throw new Error('No data found')
+    // Filter posts that belong to mapped accounts
+    const dataFiltered = data.filter((item) => accountsMap.has(item.ownerUsername))
+    // Map Apify data to post entity format
+    const postsMapped: PostEntity[] = await Promise.all(
+      dataFiltered.map((item) => mapApifyPostToPost(item, accountsMap.get(item.ownerUsername)!))
+    )
+
+    // Find already existing posts in the database
+    const posts = await prisma.instagram_post.findMany({
+      where: { link: { in: dataFiltered.map((item) => item.url) } },
+    })
+
+    // Update existing posts
+    for (const post of posts) {
+      const postData = postsMapped.find((item) => item.link === post.link)
+      if (!postData) continue
+      await prisma.instagram_post.update({ where: { id: post.id }, data: postData })
+    }
+
+    // Filter posts that do not exist yet to create them
+    let postsToCreate: PostEntity[] = postsMapped
+    if (posts.length > 0) {
+      postsToCreate = postsMapped.filter((item) => !posts.some((post) => post.link === item.link))
+    }
+
+    // Create new posts in the database
+    await prisma.instagram_post.createMany({ data: postsToCreate })
+
+    // Get all stored posts (existing and new)
+    const postsFromDb = (await prisma.instagram_post.findMany({
+      where: { link: { in: postsMapped.map((item) => item.link) } },
+    })) as unknown as PostEntity[]
+
+    return postsFromDb
+  } catch (error) {
+    console.error('Error in getPosts:', error)
+    throw new Error(
+      'Failed to get and store posts: ' + (error instanceof Error ? error.message : String(error))
+    )
+  }
+}
+
+/**
+ * Analyzes the received posts, assigns topics, calculates engagement, and analyzes comments.
+ * Creates post analysis records in the database.
+ * @param {PostEntity[]} posts - List of posts to analyze
+ * @returns {Promise<PostEntity[]>} List of analyzed posts
+ * @throws {Error} If no topics or comment analysis are found or if an unexpected error occurs
+ */
+export const analyzePosts = async (posts: PostEntity[]): Promise<PostEntity[]> => {
+  try {
+    // Get available topics
+    const topics = (await prisma.post_topic.findMany()) as unknown as PostTopic[]
+    if (topics.length <= 0) throw new Error('No topics found')
+
+    // Get enabled accounts
+    const accounts = (await prisma.account_entity.findMany({
+      where: { enabled: 'TRUE' },
+      include: { instagram_user_account: true },
+    })) as unknown as AccountEntity[]
+
+    // Assign topics to posts
+    const postsAnalysis = (await Promise.all(
+      posts.map(async (post) => {
+        const postTopic = await getPostTopic(post.title, topics)
+        return {
+          post_topic_id: Number(postTopic.id),
+          instagram_post_id: post.id,
+          post_date: post.postDate,
+        }
+      })
+    )) as unknown as PostAnalysis[]
+
+    // Filter posts that are not of type "Sorteo"
+    const postAnalysisFiltered = postsAnalysis.filter(
+      (item) => item.post_topic_id !== topics.find((topic) => topic.topic === 'Sorteo')?.id
+    )
+
+    // Filter posts to analyze
+    const postsToAnalyze = posts.filter((post) =>
+      postAnalysisFiltered.some((item) => item.instagram_post_id === post.id)
+    )
+
+    // Create analyzed comments for the posts
+    await createComments(postsToAnalyze)
+    // Get comment analysis from the database
+    const commentsAnalysis = (await prisma.comment_analysis.findMany({
+      where: { post_id: { in: postsToAnalyze.map((item) => item.id!) } },
+    })) as unknown as CommentAnalysisEntity[]
+
+    if (commentsAnalysis.length <= 0) {
+      throw new Error('No comments analysis found')
+    }
+
+    // Calculate post engagement
+    const postsWithEngagement = postsToAnalyze.map((post) => {
+      const account = accounts.find((item) => item.id === post.accountId)
+      if (!account) return null
+      const post_engagement = getPostEngagement(post, account.instagram_user_account!.followers)
+      return {
+        post_engagement,
+        post_id: post.id!,
+      }
+    }) as unknown as { post_engagement: number; post_id: number }[]
+
+    // Create post analysis in the database
+    await createPostAnalysis(postsAnalysis, postsWithEngagement, commentsAnalysis)
+    return postsToAnalyze
+  } catch (error) {
+    console.error('Error in analyzePosts:', error)
+    throw new Error(
+      'Failed to analyze posts: ' + (error instanceof Error ? error.message : String(error))
+    )
+  }
+}
+
+/**
+ * Creates post analysis, calculating engagement and comment counts by emotion.
+ * Saves new analysis records in the database.
+ * @param {PostAnalysis[]} posts - Post analysis data
+ * @param {{ post_engagement: number; post_id: number }[]} postsWithEngagement - Post engagement data
+ * @param {CommentAnalysisEntity[]} commentsAnalysis - Comment analysis data
+ * @returns {Promise<PostAnalysis[]>} Created post analysis records
+ */
+const createPostAnalysis = async (
+  posts: PostAnalysis[],
+  postsWithEngagement: { post_engagement: number; post_id: number }[],
+  commentsAnalysis: CommentAnalysisEntity[]
+): Promise<PostAnalysis[]> => {
+  // Map and calculate analysis data for each post
+  const postAnalysis = posts.map((post) => {
+    const postWithEngagement = postsWithEngagement.find(
+      (item) => item.post_id === post.instagram_post_id
+    )
+    const commentsAmount = commentsAnalysis.filter(
+      (item) => item.post_id === post.instagram_post_id
+    ).length
+
+    const negativeComments = commentsAnalysis.filter(
+      (item) => item.post_id === post.instagram_post_id && item.emotion === 'negativo'
+    ).length
+
+    const positiveComments = commentsAnalysis.filter(
+      (item) => item.post_id === post.instagram_post_id && item.emotion === 'positivo'
+    ).length
+
+    const neutralComments = commentsAmount - negativeComments - positiveComments
+    if (!postWithEngagement) return null
+    return {
+      ...post,
+      post_engagement: postWithEngagement.post_engagement,
+      comments_amount: commentsAmount,
+      ammount_negative_comments: negativeComments,
+      ammount_positive_comments: positiveComments,
+      ammount_neutral_comments: neutralComments,
+      createdat: new Date(),
+      updatedat: new Date(),
+    }
+  }) as unknown as PostAnalysis[]
+
+  // Filter valid analysis records
+  const postAnalysisFiltered = postAnalysis.filter((item) => item !== null)
+
+  // Find already existing analysis records in the database
+  const postAnalysisInDb = await prisma.post_analysis.findMany({
+    where: { instagram_post_id: { in: posts.map((item) => item.instagram_post_id) } },
+  })
+
+  // Filter analysis records that do not exist yet to create them
+  const postAnalysisToCreate = postAnalysisFiltered.filter(
+    (item) => !postAnalysisInDb.some((post) => post.instagram_post_id === item.instagram_post_id)
+  )
+
+  // Create new analysis records in the database
+  await prisma.post_analysis.createMany({ data: postAnalysisToCreate })
+  return postAnalysisToCreate
+}

@@ -1,6 +1,15 @@
 import type { ApifyCommentResponse, CommentEntity } from '@/interfaces'
 
-export const mapApifyCommentToComment = (item: ApifyCommentResponse, postId: number) => {
+/**
+ * Maps Apify comment data to a CommentEntity object.
+ * @param {ApifyCommentResponse} item - The Apify comment data
+ * @param {number} postId - The ID of the post that the comment belongs to
+ * @returns {CommentEntity} The mapped comment entity
+ */
+export const mapApifyCommentToComment = (
+  item: ApifyCommentResponse,
+  postId: number
+): CommentEntity => {
   return {
     postId: postId,
     comment: item.message,
