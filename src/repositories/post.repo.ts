@@ -6,9 +6,9 @@ import { mapApifyPostToPost } from '@/mappers'
 import type {
   AccountEntity,
   ApifyPostResponse,
-  CommentAnalysisEntity,
   PostAnalysis,
   PostEntity,
+  PostEntityWithAnalysis,
   PostTopic,
 } from '@/interfaces'
 
@@ -127,11 +127,7 @@ export const analyzePosts = async (posts: PostEntity[]): Promise<PostEntity[]> =
     )
 
     // Create analyzed comments for the posts
-    await createComments(postsToAnalyze)
-    // Get comment analysis from the database
-    const commentsAnalysis = (await prisma.comment_analysis.findMany({
-      where: { post_id: { in: postsToAnalyze.map((item) => item.id!) } },
-    })) as unknown as CommentAnalysisEntity[]
+    const commentsAnalysis = await createComments(postsToAnalyze)
 
     if (commentsAnalysis.length <= 0) {
       throw new Error('No comments analysis found')
@@ -148,8 +144,14 @@ export const analyzePosts = async (posts: PostEntity[]): Promise<PostEntity[]> =
       }
     }) as unknown as { post_engagement: number; post_id: number }[]
 
+    // Get post from db with their analysis
+    const postsWithAnalysis = (await prisma.instagram_post.findMany({
+      where: { id: { in: postsToAnalyze.map((item) => item.id!) } },
+      include: { comment_analysis: true, post_analysis: true },
+    })) as unknown as PostEntityWithAnalysis[]
+
     // Create post analysis in the database
-    await createPostAnalysis(postsAnalysis, postsWithEngagement, commentsAnalysis)
+    await createPostAnalysis(postsAnalysis, postsWithEngagement, postsWithAnalysis)
     return postsToAnalyze
   } catch (error) {
     console.error('Error in analyzePosts:', error)
@@ -164,32 +166,33 @@ export const analyzePosts = async (posts: PostEntity[]): Promise<PostEntity[]> =
  * Saves new analysis records in the database.
  * @param {PostAnalysis[]} posts - Post analysis data
  * @param {{ post_engagement: number; post_id: number }[]} postsWithEngagement - Post engagement data
- * @param {CommentAnalysisEntity[]} commentsAnalysis - Comment analysis data
+ * @param {PostEntity[]} postsWithAnalysis - Post with comment analysis data
  * @returns {Promise<PostAnalysis[]>} Created post analysis records
  */
 const createPostAnalysis = async (
   posts: PostAnalysis[],
   postsWithEngagement: { post_engagement: number; post_id: number }[],
-  commentsAnalysis: CommentAnalysisEntity[]
+  postsWithAnalysis: PostEntityWithAnalysis[]
 ): Promise<PostAnalysis[]> => {
   // Map and calculate analysis data for each post
   const postAnalysis = posts.map((post) => {
     const postWithEngagement = postsWithEngagement.find(
       (item) => item.post_id === post.instagram_post_id
     )
-    const commentsAmount = commentsAnalysis.filter(
-      (item) => item.post_id === post.instagram_post_id
-    ).length
+    const commentsAmount = postsWithAnalysis.find((item) => item.id === post.instagram_post_id)
+      ?.comment_analysis?.length
 
-    const negativeComments = commentsAnalysis.filter(
-      (item) => item.post_id === post.instagram_post_id && item.emotion === 'negativo'
-    ).length
+    if (!commentsAmount) return null
 
-    const positiveComments = commentsAnalysis.filter(
-      (item) => item.post_id === post.instagram_post_id && item.emotion === 'positivo'
-    ).length
+    const negativeComments = postsWithAnalysis
+      .find((item) => item.id === post.instagram_post_id)
+      ?.comment_analysis?.filter((item) => item.emotion === 'negativo').length
 
-    const neutralComments = commentsAmount - negativeComments - positiveComments
+    const positiveComments = postsWithAnalysis
+      .find((item) => item.id === post.instagram_post_id)
+      ?.comment_analysis?.filter((item) => item.emotion === 'positivo').length
+
+    const neutralComments = commentsAmount - (negativeComments ?? 0) - (positiveComments ?? 0)
     if (!postWithEngagement) return null
     return {
       ...post,

@@ -1,3 +1,5 @@
+import type { CommentAnalysisEntity } from './comment'
+
 export interface PostEntity {
   id?: number
   media: string
@@ -9,6 +11,9 @@ export interface PostEntity {
   type: 'POST' | 'REEL'
   link: string
   accountId: number
+}
+export interface PostEntityWithAnalysis extends PostEntity {
+  comment_analysis: CommentAnalysisEntity[]
 }
 
 export interface PostTopic {
