@@ -11,6 +11,7 @@ import type {
   PostEntityWithAnalysis,
   PostTopic,
 } from '@/interfaces'
+import pLimit from 'p-limit'
 
 /**
  * Retrieves posts from enabled accounts, maps and saves them to the database.
@@ -104,10 +105,11 @@ export const analyzePosts = async (posts: PostEntity[]): Promise<PostEntity[]> =
       include: { instagram_user_account: true },
     })) as unknown as AccountEntity[]
 
+    const limit = pLimit(8)
     // Assign topics to posts
     const postsAnalysis = (await Promise.all(
       posts.map(async (post) => {
-        const postTopic = await getPostTopic(post.title, topics)
+        const postTopic = await limit(async () => await getPostTopic(post.title, topics))
         return {
           post_topic_id: Number(postTopic.id),
           instagram_post_id: post.id,
@@ -214,12 +216,26 @@ const createPostAnalysis = async (
     where: { instagram_post_id: { in: posts.map((item) => item.instagram_post_id) } },
   })
 
-  // Filter analysis records that do not exist yet to create them
+  const postAnalysisToUpdate = postAnalysisFiltered.filter((item) =>
+    postAnalysisInDb.some((post) => post.instagram_post_id === item.instagram_post_id)
+  )
+
+  // update existing analysis records in the database
+  if (postAnalysisToUpdate.length > 0) {
+    await prisma.post_analysis.updateMany({
+      where: {
+        instagram_post_id: { in: postAnalysisToUpdate.map((item) => item.instagram_post_id) },
+      },
+      data: postAnalysisToUpdate,
+    })
+  }
+
+  // filter just the new analysis records
   const postAnalysisToCreate = postAnalysisFiltered.filter(
     (item) => !postAnalysisInDb.some((post) => post.instagram_post_id === item.instagram_post_id)
   )
 
   // Create new analysis records in the database
   await prisma.post_analysis.createMany({ data: postAnalysisToCreate })
-  return postAnalysisToCreate
+  return postAnalysisFiltered
 }

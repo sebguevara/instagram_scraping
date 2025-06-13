@@ -8,6 +8,7 @@ import { getPosts, analyzePosts } from '@/repositories/post.repo'
 export const scrapPostComments = async (): Promise<{ posts: number; status: string }> => {
   const posts = await getPosts()
   if (posts.length <= 0) throw new Error('No posts found')
+  console.log(posts.length)
 
   const postsToAnalyze = await analyzePosts(posts)
   if (postsToAnalyze.length <= 0) throw new Error('No posts to analyze')

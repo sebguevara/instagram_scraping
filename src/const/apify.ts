@@ -13,5 +13,5 @@ export const POST_ACTOR_PARAMS = {
 
 // Comment actor params
 export const COMMENT_ACTOR_PARAMS = {
-  maxItems: 4000,
+  maxItems: 8000,
 }

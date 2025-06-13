@@ -102,8 +102,8 @@ const createCommentAnalysis = async (
   comments: CommentEntity[]
 ): Promise<CommentAnalysisEntity[]> => {
   try {
-    // Limit concurrency to 20 for analysis requests
-    const limit = pLimit(20)
+    // Limit concurrency to 10 for analysis requests
+    const limit = pLimit(8)
     // Analyze each comment (emotion, topic, request)
     const commentAnalysis = (await Promise.all(
       comments.map((comment) =>
