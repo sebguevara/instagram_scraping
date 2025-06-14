@@ -32,7 +32,6 @@ export const createComments = async (posts: PostEntity[]): Promise<CommentAnalys
     // Get items (comments) from the Apify dataset
     const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
     const data = items as unknown as ApifyCommentResponse[]
-    console.log(data.length)
     if (data.length <= 0) throw new Error('No data found')
 
     // Filter out duplicate or invalid comments

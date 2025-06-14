@@ -227,12 +227,12 @@ const createPostAnalysis = async (
 
   // update existing analysis records in the database
   if (postAnalysisToUpdate.length > 0) {
-    await prisma.post_analysis.updateMany({
-      where: {
-        instagram_post_id: { in: postAnalysisToUpdate.map((item) => item.instagram_post_id) },
-      },
-      data: postAnalysisToUpdate,
-    })
+    for (const post of postAnalysisToUpdate) {
+      await prisma.post_analysis.update({
+        where: { instagram_post_id: post.instagram_post_id },
+        data: post,
+      })
+    }
   }
 
   // filter just the new analysis records

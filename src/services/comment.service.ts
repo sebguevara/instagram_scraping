@@ -105,10 +105,8 @@ export const scrapCommentsByDate = async (
   })) as unknown as PostEntity[]
 
   let totalComments = 0
-  console.log(posts.length)
   for (const post of posts) {
     const commentAnalysis = await createComments([post])
-    console.log(commentAnalysis.length)
     totalComments += commentAnalysis.length
   }
 
