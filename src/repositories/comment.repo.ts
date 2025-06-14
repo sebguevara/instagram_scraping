@@ -97,12 +97,14 @@ export const createComments = async (posts: PostEntity[]): Promise<CommentAnalys
  * @returns {Promise<CommentAnalysisEntity[]>} List of comment analysis records
  * @throws {Error} If an unexpected error occurs during analysis
  */
-const createCommentAnalysis = async (
+export const createCommentAnalysis = async (
   comments: CommentEntity[]
 ): Promise<CommentAnalysisEntity[]> => {
   try {
     // Limit concurrency to 10 for analysis requests
     const limit = pLimit(8)
+    console.log(comments.length)
+
     // Analyze each comment (emotion, topic, request)
     const commentAnalysis = (await Promise.all(
       comments.map((comment) =>
@@ -161,4 +163,57 @@ const createCommentAnalysis = async (
       'Failed to analyze comments: ' + (error instanceof Error ? error.message : String(error))
     )
   }
+}
+
+/**
+ * Obtiene todos los posts con sus comentarios y análisis asociados.
+ */
+export const getPostsWithCommentsAndAnalysis = async () => {
+  return prisma.instagram_post.findMany({
+    include: {
+      comment_entity: true,
+      comment_analysis: true,
+    },
+  })
+}
+
+/**
+ * Actualiza el campo numberOfComments de un post.
+ */
+export const updatePostNumberOfComments = async (postId: number, realCount: number) => {
+  return prisma.instagram_post.update({
+    where: { id: postId },
+    data: { numberOfComments: realCount },
+  })
+}
+
+/**
+ * Obtiene los posts creados entre dos fechas, con condiciones específicas.
+ */
+export const getPostsByDateWithComments = async (startDate: Date, endDate: Date) => {
+  return prisma.instagram_post.findMany({
+    where: {
+      postDate: {
+        gte: startDate,
+        lte: endDate,
+      },
+      numberOfComments: { not: 0 },
+      post_analysis: {
+        post_topic_id: { not: 21 },
+      },
+    },
+  })
+}
+
+/**
+ * Obtiene los comentarios cuya scrapDate sea mayor o igual a la fecha indicada.
+ */
+export const getCommentsByDate = async () => {
+  return prisma.comment_entity.findMany({
+    where: {
+      comment_analysis: {
+        is: null,
+      },
+    },
+  })
 }

@@ -9,10 +9,20 @@ export const scrapPostComments = async (
   days: number
 ): Promise<{ posts: number; status: string }> => {
   const posts = await getPosts(days)
-  if (posts.length <= 0) throw new Error('No posts found')
+  if (posts.length <= 0) {
+    return {
+      posts: 0,
+      status: 'success',
+    }
+  }
 
   const postsToAnalyze = await analyzePosts(posts)
-  if (postsToAnalyze.length <= 0) throw new Error('No posts to analyze')
+  if (postsToAnalyze.length <= 0) {
+    return {
+      posts: 0,
+      status: 'success',
+    }
+  }
   console.log('Done')
 
   return {
@@ -29,7 +39,12 @@ export const scrapPostComments = async (
  */
 export const scrapJustPosts = async (days: number): Promise<{ posts: number; status: string }> => {
   const posts = await getPosts(days)
-  if (posts.length <= 0) throw new Error('No posts found')
+  if (posts.length <= 0) {
+    return {
+      posts: 0,
+      status: 'success',
+    }
+  }
 
   return {
     posts: posts.length,

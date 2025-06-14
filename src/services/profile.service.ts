@@ -7,10 +7,20 @@ import { createHistoryProfiles, updateAccounts } from '@/repositories/profile.re
  */
 export const createProfileHistory = async (): Promise<{ accounts: number; status: string }> => {
   const { historyEntities, dataApify } = await createHistoryProfiles()
-  if (historyEntities.length <= 0) throw new Error('No history profiles found')
+  if (historyEntities.length <= 0) {
+    return {
+      accounts: 0,
+      status: 'success',
+    }
+  }
 
   const updatedAccounts = await updateAccounts(historyEntities, dataApify)
-  if (updatedAccounts.length <= 0) throw new Error('No accounts updated')
+  if (updatedAccounts.length <= 0) {
+    return {
+      accounts: 0,
+      status: 'success',
+    }
+  }
 
   return {
     accounts: updatedAccounts.length,
