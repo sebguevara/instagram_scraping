@@ -8,7 +8,6 @@ export const APIFY_ACTORS = {
 // Post actor params
 export const POST_ACTOR_PARAMS = {
   skipPinnedPosts: true,
-  onlyPostsNewerThan: '4 days',
 }
 
 // Comment actor params

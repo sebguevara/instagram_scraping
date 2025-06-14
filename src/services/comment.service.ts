@@ -1,24 +1,31 @@
 import { prisma } from '@/config'
+import type { PostEntity } from '@/interfaces'
+import { createComments } from '@/repositories/comment.repo'
 
 /**
- * Sincroniza la cantidad de comentarios de cada post con la cantidad real de
- * comentarios almacenados en la tabla `comment_entity`.  De esta forma los
- * resultados de las consultas que utilizan `instagram_post.numberOfComments`
- * y las que contabilizan registros en `comment_entity` devolverán el mismo
- * valor.
+ * Synchronizes the comment count of each post with the actual number of
+ * comments stored in the `comment_entity` table. This ensures that queries
+ * using `instagram_post.numberOfComments` and those counting records in
+ * `comment_entity` return the same value.
  *
- * Además devuelve un resumen con los posts que fueron actualizados para poder
- * realizar verificaciones o auditorías posteriores.
+ * Additionally, it returns a summary of the posts that were updated for
+ * verification or auditing purposes.
  *
- * @returns {Promise<{ postsUpdated: number; details: { postId: number; titulo: string; cantOriginal: number; cantReal: number }[]; status: string }>}
- * @throws {Error} Si no se encuentran posts almacenados en la base de datos.
+ * @returns {Promise<{ postsUpdated: number; details: { postId: number; title: string; originalCount: number; realCount: number; analysisCount: number }[]; status: string }>}
+ * @throws {Error} If no posts are found in the database.
  */
 export const syncPostCommentCounts = async (): Promise<{
   postsUpdated: number
-  details: { postId: number; titulo: string; cantOriginal: number; cantReal: number; cantAnalysis: number }[]
+  details: {
+    postId: number
+    title: string
+    originalCount: number
+    realCount: number
+    analysisCount: number
+  }[]
   status: string
 }> => {
-  // Obtiene todos los posts con sus comentarios asociados
+  // Fetch all posts with their associated comments
   const posts = await prisma.instagram_post.findMany({
     include: {
       comment_entity: true,
@@ -26,12 +33,18 @@ export const syncPostCommentCounts = async (): Promise<{
     },
   })
 
-  if (posts.length === 0) throw new Error('No se encontraron posts en la base de datos')
+  if (posts.length === 0) throw new Error('No posts found in the database')
 
   let postsUpdated = 0
-  const details: { postId: number; titulo: string; cantOriginal: number; cantReal: number; cantAnalysis: number }[] = []
+  const details: {
+    postId: number
+    title: string
+    originalCount: number
+    realCount: number
+    analysisCount: number
+  }[] = []
 
-  // Recorre los posts y compara el valor almacenado con la cantidad real
+  // Iterate through posts and compare the stored value with the actual count
   for (const post of posts) {
     const realCount = post.comment_entity.length
     const analysisCount = post.comment_analysis.length
@@ -41,7 +54,7 @@ export const syncPostCommentCounts = async (): Promise<{
     const hasMismatch = needsUpdate || realCount !== analysisCount
 
     if (needsUpdate) {
-      // Actualiza el valor de numberOfComments con la cantidad real
+      // Update the numberOfComments field with the actual count
       await prisma.instagram_post.update({
         where: { id: post.id },
         data: { numberOfComments: realCount },
@@ -52,10 +65,10 @@ export const syncPostCommentCounts = async (): Promise<{
     if (hasMismatch) {
       details.push({
         postId: post.id,
-        titulo: post.title,
-        cantOriginal: originalCount,
-        cantReal: realCount,
-        cantAnalysis: analysisCount,
+        title: post.title,
+        originalCount: originalCount,
+        realCount: realCount,
+        analysisCount: analysisCount,
       })
     }
   }
@@ -63,6 +76,44 @@ export const syncPostCommentCounts = async (): Promise<{
   return {
     postsUpdated,
     details,
+    status: 'success',
+  }
+}
+
+/**
+ * Scrapes comments for posts created on a specific date and updates the comment analysis.
+ * @returns {Promise<{ comments: number; status: string }>} An object containing the total number of comments and the status of the operation.
+ */
+export const scrapCommentsByDate = async (
+  startDate: Date,
+  endDate: Date
+): Promise<{
+  comments: number
+  status: string
+}> => {
+  const posts = (await prisma.instagram_post.findMany({
+    where: {
+      postDate: {
+        gte: startDate,
+        lte: endDate,
+      },
+      numberOfComments: { not: 0 },
+      post_analysis: {
+        post_topic_id: { not: 21 },
+      },
+    },
+  })) as unknown as PostEntity[]
+
+  let totalComments = 0
+  console.log(posts.length)
+  for (const post of posts) {
+    const commentAnalysis = await createComments([post])
+    console.log(commentAnalysis.length)
+    totalComments += commentAnalysis.length
+  }
+
+  return {
+    comments: totalComments,
     status: 'success',
   }
 }

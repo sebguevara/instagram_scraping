@@ -5,8 +5,10 @@ import { getPosts, analyzePosts } from '@/repositories/post.repo'
  * @returns {Promise<{ posts: number; status: string }>} Object containing the number of posts analyzed and the status
  * @throws {Error} If no posts are found or if no posts are to analyze
  */
-export const scrapPostComments = async (): Promise<{ posts: number; status: string }> => {
-  const posts = await getPosts()
+export const scrapPostComments = async (
+  days: number
+): Promise<{ posts: number; status: string }> => {
+  const posts = await getPosts(days)
   if (posts.length <= 0) throw new Error('No posts found')
   console.log(posts.length)
 
@@ -16,6 +18,23 @@ export const scrapPostComments = async (): Promise<{ posts: number; status: stri
 
   return {
     posts: postsToAnalyze.length,
+    status: 'success',
+  }
+}
+
+/**
+ * Scrapes posts from the last x days.
+ * @param {number} days - Number of days to scrape posts from
+ * @returns {Promise<{ posts: number; status: string }>} Object containing the number of posts scraped and the status
+ * @throws {Error} If no posts are found
+ */
+export const scrapJustPosts = async (days: number): Promise<{ posts: number; status: string }> => {
+  const posts = await getPosts(days)
+  if (posts.length <= 0) throw new Error('No posts found')
+  console.log(posts.length)
+
+  return {
+    posts: posts.length,
     status: 'success',
   }
 }

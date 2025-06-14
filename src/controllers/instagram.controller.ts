@@ -1,6 +1,6 @@
 import { createProfileHistory } from '@/services/profile.service'
 import { scrapPostComments } from '@/services/post.service'
-import { syncPostCommentCounts } from '@/services/comment.service'
+import { scrapCommentsByDate, syncPostCommentCounts } from '@/services/comment.service'
 import type { Response, Request } from 'express'
 
 /**
@@ -30,7 +30,8 @@ export const createProfileHistoryController = async (
  */
 export const createPostCommentsController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const data = await scrapPostComments()
+    const { days } = req.query
+    const data = await scrapPostComments(Number(days))
     res.status(200).json(data)
   } catch (error: unknown) {
     console.error(error)
@@ -39,19 +40,35 @@ export const createPostCommentsController = async (req: Request, res: Response):
 }
 
 /**
- * Sincroniza el valor `numberOfComments` de cada post con la cantidad real de
- * comentarios almacenados en `comment_entity` y retorna un resumen de la
- * operación.
- * @param {Request} req - Objeto de la petición
- * @param {Response} res - Objeto de la respuesta
- * @returns {Promise<void>} Resumen de la sincronización
+ * Synchronizes the `numberOfComments` value of each post with the actual number of
+ * comments stored in `comment_entity` and returns a summary of the operation.
+ * @param {Request} req - The request object
+ * @param {Response} res - The response object
+ * @returns {Promise<void>} A summary of the synchronization
  */
-export const syncPostCommentsController = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const syncPostCommentsController = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await syncPostCommentCounts()
+    res.status(200).json(data)
+  } catch (error: unknown) {
+    console.error(error)
+    res.status(500).json({ message: (error as Error).message })
+  }
+}
+
+/**
+ * Scrapes comments for posts created on a specific date and updates the comment analysis.
+ * @param {Request} req - The request object
+ * @param {Response} res - The response object
+ * @returns {Promise<void>} A summary of the operation
+ */
+export const scrapCommentsByDateController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { startDate, endDate } = req.query
+    const data = await scrapCommentsByDate(
+      new Date(startDate as string),
+      new Date(endDate as string)
+    )
     res.status(200).json(data)
   } catch (error: unknown) {
     console.error(error)

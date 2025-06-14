@@ -20,7 +20,7 @@ import pLimit from 'p-limit'
  * @returns {Promise<PostEntity[]>} List of posts obtained and stored in the database
  * @throws {Error} If no post data is found or if an unexpected error occurs
  */
-export const getPosts = async (): Promise<PostEntity[]> => {
+export const getPosts = async (days: number): Promise<PostEntity[]> => {
   try {
     // Get enabled accounts from the database
     const accounts = (await prisma.account_entity.findMany({
@@ -36,7 +36,8 @@ export const getPosts = async (): Promise<PostEntity[]> => {
     // Call Apify actor to get user posts
     const { defaultDatasetId } = await apifyClient.actor(APIFY_ACTORS.POST_ACTOR).call({
       username: Array.from(accountsMap.keys()),
-      ...POST_ACTOR_PARAMS,
+      onlyPostsNewerThan: `${days} days`,
+      skipPinnedPosts: POST_ACTOR_PARAMS.skipPinnedPosts,
     })
 
     // Get items (posts) from the Apify dataset
@@ -129,7 +130,11 @@ export const analyzePosts = async (posts: PostEntity[]): Promise<PostEntity[]> =
     )
 
     // Create analyzed comments for the posts
-    const commentsAnalysis = await createComments(postsToAnalyze)
+    const commentsAnalysis = []
+    for (const post of postsToAnalyze) {
+      const comments = await createComments([post])
+      commentsAnalysis.push(...comments)
+    }
 
     if (commentsAnalysis.length <= 0) {
       throw new Error('No comments analysis found')
