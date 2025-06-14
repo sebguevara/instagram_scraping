@@ -7,6 +7,7 @@ import {
   getPostsByDateWithComments,
   getCommentsByDate,
 } from '@/repositories/comment.repo'
+import { createPostsWithoutAnalysis } from './post.service'
 
 /**
  * Synchronizes the comment count of each post with the actual number of
@@ -32,6 +33,7 @@ export const syncPostCommentCounts = async (): Promise<{
   status: string
 }> => {
   await analyzeComments()
+  await createPostsWithoutAnalysis()
   const posts = await getPostsWithCommentsAndAnalysis()
 
   if (posts.length === 0) {

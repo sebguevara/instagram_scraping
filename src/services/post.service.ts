@@ -1,4 +1,4 @@
-import { getPosts, analyzePosts } from '@/repositories/post.repo'
+import { getPosts, analyzePosts, analyzePostsWithCommentsAnalyzed } from '@/repositories/post.repo'
 
 /**
  * Scrapes posts and analyze them with their comments.
@@ -48,6 +48,25 @@ export const scrapJustPosts = async (days: number): Promise<{ posts: number; sta
 
   return {
     posts: posts.length,
+    status: 'success',
+  }
+}
+
+/**
+ * Analyzes posts that have not been analyzed yet.
+ * @returns {Promise<{ posts: number; status: string }>} Object containing the number of posts analyzed and the status
+ * @throws {Error} If no posts are found
+ */
+export const createPostsWithoutAnalysis = async (): Promise<{ posts: number; status: string }> => {
+  const postsToAnalyze = await analyzePostsWithCommentsAnalyzed()
+  if (postsToAnalyze.length <= 0) {
+    return {
+      posts: 0,
+      status: 'success',
+    }
+  }
+  return {
+    posts: postsToAnalyze.length,
     status: 'success',
   }
 }

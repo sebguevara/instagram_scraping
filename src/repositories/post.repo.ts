@@ -244,3 +244,58 @@ const createPostAnalysis = async (
   await prisma.post_analysis.createMany({ data: postAnalysisToCreate })
   return postAnalysisFiltered
 }
+
+/**
+ * Gets posts that have not been analyzed yet.
+ * @returns {Promise<PostEntity[]>} List of posts that have not been analyzed yet
+ */
+export const getPostsToAnalyze = async (): Promise<PostEntity[]> => {
+  const posts = await prisma.instagram_post.findMany({
+    where: {
+      post_analysis: {
+        is: null,
+      },
+    },
+  })
+  return posts as unknown as PostEntity[]
+}
+
+export const analyzePostsWithCommentsAnalyzed = async (): Promise<PostEntity[]> => {
+  const postsToAnalyze = await getPostsToAnalyze()
+  const topics = (await prisma.post_topic.findMany()) as unknown as PostTopic[]
+  const accounts = await prisma.account_entity.findMany({
+    where: { enabled: 'TRUE' },
+    include: { instagram_user_account: true },
+  })
+
+  const postsAnalysis: PostAnalysis[] = []
+  for (const post of postsToAnalyze) {
+    const postTopic = await getPostTopic(post.title, topics)
+    postsAnalysis.push({
+      post_topic_id: Number(postTopic.id),
+      instagram_post_id: post.id!,
+      post_date: post.postDate,
+    })
+  }
+
+  // get comments amount and post engagement
+  const postsWithEngagement = postsToAnalyze.map((post) => {
+    const account = accounts.find((item) => item.id === post.accountId)
+    if (!account) return null
+    const post_engagement = getPostEngagement(post, account.instagram_user_account!.followers)
+    return {
+      post_engagement,
+      post_id: post.id!,
+    }
+  }) as unknown as { post_engagement: number; post_id: number }[]
+
+  // Get post from db with their analysis
+  const postsWithAnalysis = (await prisma.instagram_post.findMany({
+    where: { id: { in: postsToAnalyze.map((item) => item.id!) } },
+    include: { comment_analysis: true, post_analysis: true },
+  })) as unknown as PostEntityWithAnalysis[]
+
+  // Create post analysis in the database
+  await createPostAnalysis(postsAnalysis, postsWithEngagement, postsWithAnalysis)
+  return postsToAnalyze
+}
