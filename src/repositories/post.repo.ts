@@ -189,7 +189,7 @@ const createPostAnalysis = async (
     const commentsAmount = postsWithAnalysis.find((item) => item.id === post.instagram_post_id)
       ?.comment_analysis?.length
 
-    if (!commentsAmount) return null
+    if (commentsAmount === undefined) return null
 
     const negativeComments = postsWithAnalysis
       .find((item) => item.id === post.instagram_post_id)
