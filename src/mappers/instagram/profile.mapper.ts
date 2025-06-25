@@ -1,4 +1,8 @@
-import type { ApifyProfileResponse, HistoryEntity, InstagramUserAccountEntity } from '@/interfaces'
+import type {
+  ApifyIGProfileResponse,
+  IGHistoryEntity,
+  IGInstagramUserAccountEntity,
+} from '@/interfaces'
 
 /**
  * Maps Apify profile data to a HistoryEntity object.
@@ -7,9 +11,9 @@ import type { ApifyProfileResponse, HistoryEntity, InstagramUserAccountEntity } 
  * @returns {HistoryEntity} The mapped history entity
  */
 export const mapApifyProfileToUser = (
-  item: ApifyProfileResponse,
+  item: ApifyIGProfileResponse,
   accountId: number
-): HistoryEntity => {
+): IGHistoryEntity => {
   return {
     userName: item.username,
     followers: item.followersCount,
@@ -17,7 +21,7 @@ export const mapApifyProfileToUser = (
     numberOfPosts: item.postsCount || 0,
     scrapDate: new Date(),
     accountId: accountId,
-  } as HistoryEntity
+  } as IGHistoryEntity
 }
 
 /**
@@ -27,14 +31,14 @@ export const mapApifyProfileToUser = (
  * @returns {InstagramUserAccountEntity} The mapped Instagram user account entity
  */
 export const mapUserToPrisma = (
-  history: HistoryEntity,
-  profileData: ApifyProfileResponse
-): InstagramUserAccountEntity => {
+  history: IGHistoryEntity,
+  profileData: ApifyIGProfileResponse
+): IGInstagramUserAccountEntity => {
   return {
     followers: history.followers,
     following: history.following,
     numberOfPosts: history.numberOfPosts,
     profilePictureUrl: profileData.profilePicUrl,
     scrapDate: history.scrapDate,
-  } as InstagramUserAccountEntity
+  } as IGInstagramUserAccountEntity
 }

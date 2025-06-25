@@ -10,11 +10,19 @@ datasource db {
 model account_entity {
   id                       Int                         @id(map: "PK_b482dad15becff9a89ad707dcbe") @default(autoincrement())
   accountURL               String                      @db.VarChar
-  accountType              String                      @default("INSTAGRAM") @db.VarChar
   enabled                  account_entity_enabled_enum @default(TRUE)
+  account_type_id          Int?                        @default(1)
+  account_category_id      Int?                        @default(3)
+  account_category         account_category?           @relation(fields: [account_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_account_entity_account_category")
+  account_type             account_type?               @relation(fields: [account_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_account_entity_account_type")
+  facebook_account_history facebook_account_history[]
+  facebook_user_account    facebook_user_account?
   history_entity           history_entity[]
   instagram_user_account   instagram_user_account?
   overall_account_analysis overall_account_analysis?
+
+  @@index([account_category_id], map: "idx_account_entity_account_category_id")
+  @@index([account_type_id], map: "idx_account_entity_account_type_id")
 }
 
 model avoid_actions {
@@ -66,6 +74,7 @@ model history_entity {
   account_entity account_entity? @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_f343483ade9434864a0adf5be17")
 }
 
+/// This model contains an index with non-default null sort order and requires additional setup for migrations. Visit https://pris.ly/d/default-index-null-ordering for more info.
 model instagram_post {
   id                     Int                      @id(map: "PK_a0946a290d49ebb27c7684b956d") @default(autoincrement())
   media                  String
@@ -77,12 +86,18 @@ model instagram_post {
   type                   instagram_post_type_enum @default(POST)
   accountId              Int?
   link                   String?
+  artificialLikes        Boolean?                 @default(false)
   comment_analysis       comment_analysis[]
   comment_entity         comment_entity[]
   instagram_user_account instagram_user_account?  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_aa9e241c18cc32024858f02cfb6")
   post_analysis          post_analysis?
+
+  @@index([scrapDate, accountId, numberOfLikes, numberOfComments], map: "idx_instagram_post_date_range")
+  @@index([scrapDate, numberOfLikes(sort: Desc), numberOfComments(sort: Desc)], map: "idx_instagram_post_performance")
+  @@index([scrapDate(sort: Desc)], map: "idx_instagram_post_scrap_date_desc")
 }
 
+/// This model contains an index with non-default null sort order and requires additional setup for migrations. Visit https://pris.ly/d/default-index-null-ordering for more info.
 model instagram_user_account {
   id                Int              @id(map: "PK_02fa9f168d5aeedbb1fee8f8aea") @default(autoincrement())
   username          String           @db.VarChar
@@ -95,6 +110,8 @@ model instagram_user_account {
   following         Float            @default(0)
   instagram_post    instagram_post[]
   account_entity    account_entity?  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_f487bf93ea0471fdff8042ad5ed")
+
+  @@index([scrapDate(sort: Desc)], map: "idx_instagram_user_account_scrap_date_desc")
 }
 
 model keep_doing_actions {
@@ -133,6 +150,7 @@ model post_analysis {
   createdat                 DateTime?            @default(now()) @db.Timestamp(6)
   updatedat                 DateTime?            @default(now()) @db.Timestamp(6)
   post_engagement           Decimal?             @db.Decimal
+  tags                      String?
   avoid_actions             avoid_actions[]
   keep_doing_actions        keep_doing_actions[]
   instagram_post            instagram_post?      @relation(fields: [instagram_post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -141,12 +159,17 @@ model post_analysis {
 }
 
 model post_topic {
-  id            Int             @id @default(autoincrement())
-  emoji         String
-  topic         String
-  description   String?
-  createdat     DateTime?       @default(now()) @db.Timestamp(6)
-  post_analysis post_analysis[]
+  id                     Int                      @id @default(autoincrement())
+  emoji                  String
+  topic                  String
+  description            String?
+  createdat              DateTime?                @default(now()) @db.Timestamp(6)
+  account_category_id    Int?                     @default(3)
+  facebook_post_analysis facebook_post_analysis[]
+  post_analysis          post_analysis[]
+  account_category       account_category?        @relation(fields: [account_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_post_topic_account_category")
+
+  @@index([account_category_id], map: "idx_post_topic_account_category_id")
 }
 
 model recommendations {
@@ -158,143 +181,104 @@ model recommendations {
   post_analysis    post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model base_habilitaciones {
-  id_habilitacion Decimal? @db.Decimal(255, 0)
-  apellido        String?  @db.VarChar(255)
-  nombres         String?  @db.VarChar(255)
-  cuil_tipo       String?  @db.VarChar(255)
-  dni             String?  @db.VarChar(255)
-  cuil_digito     String?  @db.VarChar(255)
-  fe_nac          String?  @db.VarChar(255)
-  id_persona_sim  Decimal? @db.Decimal(255, 0)
-  otro_dato_domi  String?  @db.VarChar(255)
-  telefono        String?  @db.VarChar(255)
-  punto_geom      String?  @db.VarChar(255)
-  email           String?  @db.VarChar(255)
-  fe_emision      String?  @db.VarChar(255)
-  obs             String?  @db.VarChar(255)
-
-  @@ignore
+model facebook_post {
+  id                      Int                       @id @default(autoincrement())
+  media                   String?
+  title                   String?
+  numberoflikes           Int?
+  numberofshares          Int?
+  numberofcomments        Int?
+  scrapdate               DateTime?                 @default(now()) @db.Timestamp(6)
+  postdate                DateTime                  @db.Timestamptz(6)
+  type                    String?
+  accountid               Int?
+  link                    String?
+  facebook_comment_entity facebook_comment_entity[]
+  facebook_user_account   facebook_user_account?    @relation(fields: [accountid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  facebook_post_analysis  facebook_post_analysis?
 }
 
-model base_sac {
-  id_contacto         BigInt  @id(map: "id_contacto")
-  id_problema         String? @db.VarChar(255)
-  id_tipo_contacto    String? @db.VarChar(255)
-  descripcion         String? @db.VarChar(255)
-  fecha_hora_contacto String? @db.VarChar(255)
-  riesgo              String? @db.VarChar(255)
-  descr_problema      String? @db.VarChar(255)
-  via                 String? @db.VarChar(255)
-  riesgo_descr        String? @db.VarChar(255)
-  documento           String? @db.VarChar(255)
-  nombre_contacto     String? @db.VarChar(255)
-  id_area             String? @db.VarChar(255)
-  lugar_problema      String? @db.VarChar(255)
-  severidad           String? @db.VarChar(255)
-  id_asignacion       String? @db.VarChar(255)
-  id_tipo_cierre      String? @db.VarChar(255)
-  definitivo          String? @db.VarChar(255)
-  id_reiteracion      String? @db.VarChar(255)
-  ubi_punto           String? @db.VarChar(255)
-  id_persona          String? @db.VarChar(255)
-  accion              String? @db.VarChar(255)
-  no_asignado         String? @db.VarChar(255)
-  cerrado             String? @db.VarChar(255)
-  estado              String? @db.VarChar(255)
-  id_barrio           String? @db.VarChar(255)
+model account_category {
+  id             Int              @id @default(autoincrement())
+  name           String           @unique @db.VarChar(50)
+  description    String?          @db.VarChar(255)
+  createdat      DateTime?        @default(now()) @db.Timestamp(6)
+  account_entity account_entity[]
+  post_topic     post_topic[]
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model comparsas {
-  orden             String?   @db.VarChar(255)
-  apellido_nombre   String?   @db.VarChar(255)
-  fecha_nacimiento  String?   @db.VarChar(255)
-  dni               String?   @db.VarChar(255)
-  comparsa          String?   @db.VarChar(255)
-  dni2              String?
-  fecha_nacimiento2 DateTime? @db.Date
-
-  @@ignore
+model account_type {
+  id             Int              @id @default(autoincrement())
+  name           String           @unique @db.VarChar(50)
+  description    String?          @db.VarChar(255)
+  createdat      DateTime?        @default(now()) @db.Timestamp(6)
+  account_entity account_entity[]
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model licencias_vencen_10_04_24 {
-  Columna1          String? @db.VarChar(255)
-  instancia         String? @db.VarChar(255)
-  usuario           String? @db.VarChar(255)
-  fecha_creacion    String? @map("fecha creacion") @db.VarChar(255)
-  categoria         String? @db.VarChar(255)
-  documento         String? @db.VarChar(255)
-  licencia          String? @db.VarChar(255)
-  apellido          String? @db.VarChar(255)
-  nombre            String? @db.VarChar(255)
-  fecha_inicio      String? @map("fecha inicio") @db.VarChar(255)
-  fecha_vencimiento String? @map("fecha vencimiento") @db.VarChar(255)
-
-  @@ignore
+model facebook_account_history {
+  id              Int             @id @default(autoincrement())
+  accountEntityID Int?
+  scrap_date      DateTime        @db.Date
+  username        String          @db.VarChar
+  followers       Int
+  likes           Int
+  account_entity  account_entity? @relation(fields: [accountEntityID], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model origen {
-  dni               String  @id(map: "pk_dni") @db.VarChar(10)
-  clase             String? @db.VarChar(6)
-  edad              String? @db.VarChar(3)
-  categoria_edad    String? @db.VarChar(30)
-  apellido          String? @db.VarChar(50)
-  nombre            String? @db.VarChar(50)
-  domicilio         String? @db.VarChar(150)
-  tipo_ejemplar     String? @db.VarChar(30)
-  circ_numero       String? @db.VarChar(30)
-  establecimiento   String? @db.VarChar(150)
-  nro_mesa          String? @db.VarChar(5)
-  orden_mesa        String? @db.VarChar(6)
-  genero            String? @db.VarChar(50)
-  situacion_laboral String? @db.VarChar(100)
-  impuesto_rural    String? @db.VarChar(100)
-  vehiculo          String? @db.VarChar(150)
-  vehiculo_a_o      String? @map("vehiculo_año") @db.VarChar(5)
-  beneficio         String? @db.VarChar(50)
-  antiguedad        String? @db.VarChar(3)
-  cuotapaga         String? @db.VarChar(10)
-  padron_regatas    String? @db.VarChar(15)
-  telefono          String? @db.VarChar(20)
-  telefono_2        String? @db.VarChar(25)
-  telefono_3        String? @db.VarChar(25)
-  telefono_4        String? @db.VarChar(25)
-  telefono_5        String? @db.VarChar(25)
-  telefono_6        String? @db.VarChar(25)
-  telefono_7        String? @db.VarChar(25)
-  telefono_8        String? @db.VarChar(25)
-  telefono_9        String? @db.VarChar(25)
-  telefono_10       String? @db.VarChar(25)
-  telefono_11       String? @db.VarChar(25)
-  telefono_12       String? @db.VarChar(25)
-  telefono_13       String? @db.VarChar(25)
-  telefono_14       String? @db.VarChar(25)
-  telefono_15       String? @db.VarChar(25)
-  telefono_16       String? @db.VarChar(25)
-  mail              String? @db.VarChar(200)
-  mail_2            String? @db.VarChar(200)
-  mail_3            String? @db.VarChar(200)
-  mail_4            String? @db.VarChar(200)
-  mail_5            String? @db.VarChar(200)
-  circuito          String? @db.VarChar(25)
-  barrio            String? @db.VarChar(80)
-  grupo_problema    String? @db.VarChar(200)
-  problema          String? @db.VarChar(200)
-  niveleducativo    String? @db.VarChar(150)
-  localidad         String? @db.VarChar(150)
-  departamento      String? @db.VarChar(150)
-  envio_celular     String? @db.VarChar(15)
-  cantidad_envios   String? @db.VarChar(8)
-  sube              String? @db.VarChar(15)
-  dominio           String? @db.VarChar(25)
-  sorteos           String? @db.VarChar(25)
-  algun_sorteo      String? @db.VarChar(25)
-  lat               String? @db.VarChar(30)
-  lng               String? @db.VarChar(30)
+model facebook_comment_analysis {
+  id                      Int                      @id @default(autoincrement())
+  facebookCommentID       Int?                     @unique
+  topic                   String?
+  emotion                 String?
+  request                 String?
+  analyzedAt              DateTime?                @default(dbgenerated("('now'::text)::date")) @db.Date
+  updatedAt               DateTime?                @default(dbgenerated("('now'::text)::date")) @db.Date
+  facebook_comment_entity facebook_comment_entity? @relation(fields: [facebookCommentID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model facebook_comment_entity {
+  id                            Int                        @id @default(autoincrement())
+  postID                        Int?
+  primaryCommentID              Int?
+  commentContent                String                     @db.VarChar
+  commentOwnerUsername          String                     @db.VarChar
+  likesOfComment                Int?
+  scrap_date                    DateTime                   @default(dbgenerated("('now'::text)::date")) @db.Date
+  comment_date                  DateTime                   @default(dbgenerated("('now'::text)::date")) @db.Date
+  facebook_comment_analysis     facebook_comment_analysis?
+  facebook_post                 facebook_post?             @relation(fields: [postID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  facebook_comment_entity       facebook_comment_entity?   @relation("facebook_comment_entityTofacebook_comment_entity", fields: [primaryCommentID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_facebook_comment_entity facebook_comment_entity[]  @relation("facebook_comment_entityTofacebook_comment_entity")
+}
+
+model facebook_post_analysis {
+  id                      Int            @id @default(autoincrement())
+  instagramPostID         Int?           @unique
+  postTopicId             Int?
+  commentsAmmount         Int?
+  ammountNegativeComments Int?
+  ammountPositiveComments Int?
+  ammountNeutralComments  Int?
+  generalEmotion          String?
+  postEngagement          Float?
+  createdAt               DateTime?      @default(now()) @db.Timestamp(6)
+  updatedAt               DateTime?      @default(now()) @db.Timestamp(6)
+  facebook_post           facebook_post? @relation(fields: [instagramPostID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  post_topic              post_topic?    @relation(fields: [postTopicId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model facebook_user_account {
+  id                  Int             @id @default(autoincrement())
+  accountEntityID     Int?            @unique
+  name                String          @db.VarChar
+  username            String          @db.VarChar
+  likes               Int?
+  followers           Int?
+  profilePictureURL   String?
+  publication_ammount Int?
+  last_scrap_date     DateTime?       @db.Date
+  facebook_post       facebook_post[]
+  account_entity      account_entity? @relation(fields: [accountEntityID], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 enum instagram_post_type_enum {
@@ -305,4 +289,15 @@ enum instagram_post_type_enum {
 enum account_entity_enabled_enum {
   TRUE  @map("1")
   FALSE @map("0")
+}
+
+enum account_category_enum {
+  POLITICS
+  NEWS
+  ALL
+}
+
+enum facebook_post_type_enum {
+  POST
+  REEL
 }

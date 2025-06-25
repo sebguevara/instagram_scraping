@@ -1,8 +1,9 @@
 // schemas
-export * from './schemas/comment'
-export * from './schemas/post'
-export * from './schemas/profile'
+export * from './schemas/instagram/comment'
+export * from './schemas/instagram/post'
+export * from './schemas/instagram/profile'
 // apify
-export * from './apify/comment'
-export * from './apify/post'
-export * from './apify/profile'
+export * from './apify/instagram/comment'
+export * from './apify/instagram/post'
+export * from './apify/instagram/profile'
+export * from './apify/facebook/post'

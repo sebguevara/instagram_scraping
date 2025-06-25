@@ -1,4 +1,4 @@
-import type { ApifyPostResponse, PostEntity } from '@/interfaces'
+import type { ApifyIGPostResponse, IGPostEntity } from '@/interfaces'
 import { calculateLikes } from '@/utils'
 
 /**
@@ -8,9 +8,9 @@ import { calculateLikes } from '@/utils'
  * @returns {Promise<PostEntity>} The mapped post entity
  */
 export const mapApifyPostToPost = async (
-  item: ApifyPostResponse,
+  item: ApifyIGPostResponse,
   accountId: number
-): Promise<PostEntity> => {
+): Promise<IGPostEntity> => {
   const likes = item.likesCount != -1 ? item.likesCount : await calculateLikes(accountId)
   return {
     media: item.displayUrl,
@@ -22,5 +22,5 @@ export const mapApifyPostToPost = async (
     type: item.type === 'Image' || item.type === 'Sidecar' ? 'POST' : 'REEL',
     link: item.url,
     accountId: accountId,
-  } as PostEntity
+  } as IGPostEntity
 }

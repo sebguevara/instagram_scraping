@@ -1,6 +1,6 @@
 import { openai } from '@/config'
-import type { PostTopic, PostTopicResponse } from '@/interfaces'
-import { extractJson } from './extract_json'
+import type { IGPostTopic, IGPostTopicResponse } from '@/interfaces'
+import { extractJson } from '../extract_json'
 import {
   OPENAI_MAX_TOKENS_POST,
   OPENAI_MODEL,
@@ -16,8 +16,8 @@ import {
  */
 export const getPostTopic = async (
   description: string,
-  topics: PostTopic[]
-): Promise<PostTopicResponse> => {
+  topics: IGPostTopic[]
+): Promise<IGPostTopicResponse> => {
   const topicsList = topics.map((t) => `id: ${t.id}, ${t.topic}`).join('; ')
   const systemPrompt = OPENAI_SYSTEM_PROMPT_POST(topicsList)
   const userPrompt = `El texto a analizar es: ${description}`
@@ -35,7 +35,7 @@ export const getPostTopic = async (
   const rawContent = response.choices?.[0]?.message?.content || '{}'
   try {
     const onlyJson = extractJson(rawContent)
-    return JSON.parse(onlyJson) as PostTopicResponse
+    return JSON.parse(onlyJson) as IGPostTopicResponse
   } catch (error) {
     console.log('error:', error)
     throw new Error('No se pudo parsear la respuesta GPT')

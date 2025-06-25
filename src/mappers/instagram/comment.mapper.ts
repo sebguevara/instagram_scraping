@@ -1,4 +1,4 @@
-import type { ApifyCommentResponse, CommentEntity } from '@/interfaces'
+import type { ApifyIGCommentResponse, IGCommentEntity } from '@/interfaces'
 
 /**
  * Maps Apify comment data to a CommentEntity object.
@@ -7,9 +7,9 @@ import type { ApifyCommentResponse, CommentEntity } from '@/interfaces'
  * @returns {CommentEntity} The mapped comment entity
  */
 export const mapApifyCommentToComment = (
-  item: ApifyCommentResponse,
+  item: ApifyIGCommentResponse,
   postId: number
-): CommentEntity => {
+): IGCommentEntity => {
   return {
     postId: postId,
     comment: item.message,
@@ -19,5 +19,5 @@ export const mapApifyCommentToComment = (
     scrapDate: new Date(),
     originalCommentId: undefined,
     instagramid: item.id,
-  } as CommentEntity
+  } as IGCommentEntity
 }

@@ -1,7 +1,7 @@
 import { apifyClient, prisma } from '@/config'
 import { getPostEngagement, getPostTopic, getUsername } from '@/utils'
 import { createComments } from './comment.repo'
-import { APIFY_ACTORS, POST_ACTOR_PARAMS } from '@/const'
+import { APIFY_IG_ACTORS, POST_IG_ACTOR_PARAMS } from '@/const'
 import { mapApifyPostToPost } from '@/mappers'
 import type {
   AccountEntity,
@@ -24,7 +24,7 @@ export const getPosts = async (days: number): Promise<PostEntity[]> => {
   try {
     // Get enabled accounts from the database
     const accounts = (await prisma.account_entity.findMany({
-      where: { enabled: 'TRUE' },
+      where: { enabled: 'TRUE', accountType: 'INSTAGRAM', id: 20 },
       include: { instagram_user_account: true },
     })) as unknown as AccountEntity[]
 
@@ -34,10 +34,10 @@ export const getPosts = async (days: number): Promise<PostEntity[]> => {
     ) as Map<string | null, number>
 
     // Call Apify actor to get user posts
-    const { defaultDatasetId } = await apifyClient.actor(APIFY_ACTORS.POST_ACTOR).call({
+    const { defaultDatasetId } = await apifyClient.actor(APIFY_IG_ACTORS.POST_ACTOR).call({
       username: Array.from(accountsMap.keys()),
       onlyPostsNewerThan: `${days} days`,
-      skipPinnedPosts: POST_ACTOR_PARAMS.skipPinnedPosts,
+      skipPinnedPosts: POST_IG_ACTOR_PARAMS.skipPinnedPosts,
     })
 
     // Get items (posts) from the Apify dataset
@@ -71,7 +71,9 @@ export const getPosts = async (days: number): Promise<PostEntity[]> => {
     }
 
     // Create new posts in the database
-    await prisma.instagram_post.createMany({ data: postsToCreate })
+    for (const post of postsToCreate) {
+      await prisma.instagram_post.create({ data: post })
+    }
 
     // Get all stored posts (existing and new)
     const postsFromDb = (await prisma.instagram_post.findMany({
@@ -102,7 +104,7 @@ export const analyzePosts = async (posts: PostEntity[]): Promise<PostEntity[]> =
 
     // Get enabled accounts
     const accounts = (await prisma.account_entity.findMany({
-      where: { enabled: 'TRUE' },
+      where: { enabled: 'TRUE', accountType: 'INSTAGRAM' },
       include: { instagram_user_account: true },
     })) as unknown as AccountEntity[]
 
@@ -241,7 +243,9 @@ const createPostAnalysis = async (
   )
 
   // Create new analysis records in the database
-  await prisma.post_analysis.createMany({ data: postAnalysisToCreate })
+  for (const post of postAnalysisToCreate) {
+    await prisma.post_analysis.create({ data: post })
+  }
   return postAnalysisFiltered
 }
 
@@ -264,7 +268,7 @@ export const analyzePostsWithCommentsAnalyzed = async (): Promise<PostEntity[]> 
   const postsToAnalyze = await getPostsToAnalyze()
   const topics = (await prisma.post_topic.findMany()) as unknown as PostTopic[]
   const accounts = await prisma.account_entity.findMany({
-    where: { enabled: 'TRUE' },
+    where: { enabled: 'TRUE', accountType: 'INSTAGRAM' },
     include: { instagram_user_account: true },
   })
 

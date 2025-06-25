@@ -1,4 +1,4 @@
-export interface ApifyPostResponse {
+export interface ApifyIGPostResponse {
   inputUrl: string
   id: string
   type: string

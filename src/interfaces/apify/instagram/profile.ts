@@ -1,4 +1,4 @@
-export interface ApifyProfileResponse {
+export interface ApifyIGProfileResponse {
   inputUrl: string
   id: string
   username: string

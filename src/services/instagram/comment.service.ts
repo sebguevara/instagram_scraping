@@ -6,7 +6,7 @@ import {
   updatePostNumberOfComments,
   getPostsByDateWithComments,
   getCommentsByDate,
-} from '@/repositories/comment.repo'
+} from '@/repositories/instagram/comment.repo'
 import { createPostsWithoutAnalysis } from './post.service'
 
 /**

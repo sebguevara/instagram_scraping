@@ -1,4 +1,8 @@
-import { getPosts, analyzePosts, analyzePostsWithCommentsAnalyzed } from '@/repositories/post.repo'
+import {
+  getPosts,
+  analyzePosts,
+  analyzePostsWithCommentsAnalyzed,
+} from '@/repositories/instagram/post.repo'
 
 /**
  * Scrapes posts and analyze them with their comments.

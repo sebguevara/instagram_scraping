@@ -1,4 +1,4 @@
-import { createHistoryProfiles, updateAccounts } from '@/repositories/profile.repo'
+import { createHistoryProfiles, updateAccounts } from '@/repositories/instagram/profile.repo'
 
 /**
  * Service to create profile history and update accounts.

@@ -1,4 +1,4 @@
-export interface ApifyCommentResponse {
+export interface ApifyIGCommentResponse {
   postId: string
   id: string
   userId: number

@@ -5,16 +5,16 @@ import {
   OPENAI_SYSTEM_PROMPT_COMMENT,
   OPENAI_TEMPERATURE,
 } from '@/const'
-import type { CommentAnalysisRequest } from '@/interfaces'
-import { extractJson } from './extract_json'
+import type { IGCommentAnalysisRequest } from '@/interfaces'
+import { extractJson } from '../extract_json'
 
 /**
  * Analyzes a comment and returns an object with the emotion, topic, and request.
  * @param {string} comment - The comment to analyze
- * @returns {Promise<CommentAnalysisRequest>} The analyzed comment
+ * @returns {Promise<IGCommentAnalysisRequest>} The analyzed comment
  * @throws {Error} If no JSON is found in the text
  */
-export const getAnalyzedComment = async (comment: string): Promise<CommentAnalysisRequest> => {
+export const getAnalyzedComment = async (comment: string): Promise<IGCommentAnalysisRequest> => {
   const systemPrompt = OPENAI_SYSTEM_PROMPT_COMMENT
   const userPrompt = `Comentario a analizar: ${comment}`
 
@@ -31,7 +31,7 @@ export const getAnalyzedComment = async (comment: string): Promise<CommentAnalys
   const rawContent = response.choices?.[0]?.message?.content || '{}'
   try {
     const onlyJson = extractJson(rawContent)
-    return JSON.parse(onlyJson) as CommentAnalysisRequest
+    return JSON.parse(onlyJson) as IGCommentAnalysisRequest
   } catch (error) {
     console.log('error:', error)
     throw new Error('No se pudo parsear la respuesta GPT')

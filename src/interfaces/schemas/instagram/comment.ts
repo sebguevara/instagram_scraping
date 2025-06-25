@@ -1,4 +1,4 @@
-export interface CommentEntity {
+export interface IGCommentEntity {
   id?: number
   comment: string
   commentOwnerName: string
@@ -10,7 +10,7 @@ export interface CommentEntity {
   instagramid?: string
 }
 
-export interface CommentAnalysisEntity {
+export interface IGCommentAnalysisEntity {
   id?: number
   comment_entity_id: number
   post_id: number
@@ -21,7 +21,7 @@ export interface CommentAnalysisEntity {
   updatedat?: Date
 }
 
-export interface CommentAnalysisRequest {
+export interface IGCommentAnalysisRequest {
   emotion: string
   topic: string
   request: string

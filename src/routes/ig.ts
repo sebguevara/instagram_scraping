@@ -3,13 +3,15 @@ import {
   createPostCommentsController,
   createProfileHistoryController,
   scrapCommentsByDateController,
+  scrapJustPostsController,
   syncPostCommentsController,
-} from '@/controllers/instagram.controller'
+} from '@/controllers/ig.controller'
 
 const router = Router()
 
 router.get('/profile', createProfileHistoryController)
 router.get('/post', createPostCommentsController)
+router.get('/post/scrap', scrapJustPostsController)
 router.get('/comments/sync', syncPostCommentsController)
 router.get('/comments/scrap', scrapCommentsByDateController)
 
