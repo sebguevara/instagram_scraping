@@ -22,5 +22,6 @@ export const mapApifyPostToPost = async (
     type: item.type === 'Image' || item.type === 'Sidecar' ? 'POST' : 'REEL',
     link: item.url,
     accountId: accountId,
+    artificialLikes: item.likesCount === -1,
   } as IGPostEntity
 }

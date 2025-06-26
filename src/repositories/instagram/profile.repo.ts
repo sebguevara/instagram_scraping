@@ -20,7 +20,7 @@ export const updateAccounts = async (
   dataApify: ApifyIGProfileResponse[]
 ): Promise<IGInstagramUserAccountEntity[]> => {
   const accounts = (await prisma.account_entity.findMany({
-    where: { enabled: 'TRUE', accountType: 'INSTAGRAM' },
+    where: { enabled: 'TRUE', account_type_id: 1 },
   })) as unknown as IGAccountEntity[]
 
   const accountUpdates = accounts.map((account) => {
@@ -50,7 +50,7 @@ export const createHistoryProfiles = async (): Promise<{
   dataApify: ApifyIGProfileResponse[]
 }> => {
   const accounts = (await prisma.account_entity.findMany({
-    where: { enabled: 'TRUE', accountType: 'INSTAGRAM' },
+    where: { enabled: 'TRUE', account_type_id: 1 },
   })) as unknown as IGAccountEntity[]
 
   const accountMap = new Map(

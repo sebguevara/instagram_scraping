@@ -3,10 +3,10 @@ import { APIFY_IG_ACTORS, COMMENT_IG_ACTOR_PARAMS } from '@/const'
 import { getAnalyzedComment, getPostByUrl } from '@/utils'
 import { mapApifyCommentToComment } from '@/mappers'
 import type {
-  ApifyCommentResponse,
-  CommentAnalysisEntity,
-  CommentEntity,
-  PostEntity,
+  ApifyIGCommentResponse,
+  IGCommentAnalysisEntity,
+  IGCommentEntity,
+  IGPostEntity,
 } from '@/interfaces'
 import pLimit from 'p-limit'
 
@@ -18,10 +18,10 @@ import pLimit from 'p-limit'
  * @returns {Promise<CommentAnalysisEntity[]>} List of analyzed comments
  * @throws {Error} If no comment data is found or if an unexpected error occurs
  */
-export const createComments = async (posts: PostEntity[]): Promise<CommentAnalysisEntity[]> => {
+export const createComments = async (posts: IGPostEntity[]): Promise<IGCommentAnalysisEntity[]> => {
   try {
     // Map Instagram post IDs to database post IDs
-    const igIdPostIdMap = new Map(posts.map((item) => [getPostByUrl(item.link), item.id]))
+    const igIdPostIdMap = new Map(posts.map((item) => [getPostByUrl(item.link!), item.id]))
 
     // Call Apify actor to fetch comments for the given posts
     const { defaultDatasetId } = await apifyClient.actor(APIFY_IG_ACTORS.COMMENT_ACTOR).call({
@@ -31,7 +31,7 @@ export const createComments = async (posts: PostEntity[]): Promise<CommentAnalys
 
     // Get items (comments) from the Apify dataset
     const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
-    const data = items as unknown as ApifyCommentResponse[]
+    const data = items as unknown as ApifyIGCommentResponse[]
     if (data.length <= 0) throw new Error('No data found')
 
     // Filter out duplicate or invalid comments
@@ -78,7 +78,7 @@ export const createComments = async (posts: PostEntity[]): Promise<CommentAnalys
     // Get all stored comments (existing and new)
     const allComments = (await prisma.comment_entity.findMany({
       where: { instagramid: { in: commentsMapped.map((item) => item.instagramid!) } },
-    })) as unknown as CommentEntity[]
+    })) as unknown as IGCommentEntity[]
 
     // Analyze all comments
     const commentAnalysis = await createCommentAnalysis(allComments)
@@ -100,8 +100,8 @@ export const createComments = async (posts: PostEntity[]): Promise<CommentAnalys
  * @throws {Error} If an unexpected error occurs during analysis
  */
 export const createCommentAnalysis = async (
-  comments: CommentEntity[]
-): Promise<CommentAnalysisEntity[]> => {
+  comments: IGCommentEntity[]
+): Promise<IGCommentAnalysisEntity[]> => {
   try {
     // Limit concurrency to 10 for analysis requests
     const limit = pLimit(8)
@@ -123,7 +123,7 @@ export const createCommentAnalysis = async (
           }
         })
       )
-    )) as unknown as CommentAnalysisEntity[]
+    )) as unknown as IGCommentAnalysisEntity[]
 
     // Find already existing analysis records in the database
     const commentAnalysisInDb = await prisma.comment_analysis.findMany({

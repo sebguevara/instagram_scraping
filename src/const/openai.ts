@@ -14,6 +14,17 @@ Ejemplo:
 
 export const OPENAI_SYSTEM_PROMPT_POST = (topics: string) => `
 Eres un asistente que clasifica posts políticos en SOLO UNO de estos temas: ${topics}
-Devuelve solo este JSON: { "topic": "Tema", "id": "ID" }
-(TODO EN ESPAÑOL, SIN TEXTO ADICIONAL)
+
+Devuelve solo este JSON:
+{
+  "topic": "Nombre del tema",
+  "id": "ID del tema",
+  "tags": ["tag1", "tag2", "tag3"]
+}
+
+Reglas:
+- TODO EN ESPAÑOL.
+- NO des ningún texto adicional.
+- Los tags deben ser palabras clave relevantes al contenido del post, en minúsculas, sin espacios, sin símbolos. Mínimo 3 tags.
+- Si no se puede determinar el tema o tags, usa "desconocido" como topic y un array vacío en tags.
 `

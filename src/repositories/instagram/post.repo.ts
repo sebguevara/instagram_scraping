@@ -24,7 +24,7 @@ export const getPosts = async (days: number): Promise<IGPostEntity[]> => {
   try {
     // Get enabled accounts from the database
     const accounts = (await prisma.account_entity.findMany({
-      where: { enabled: 'TRUE', accountType: 'INSTAGRAM', id: 20 },
+      where: { enabled: 'TRUE', account_type_id: 1 },
       include: { instagram_user_account: true },
     })) as unknown as IGAccountEntity[]
 
@@ -104,7 +104,7 @@ export const analyzePosts = async (posts: IGPostEntity[]): Promise<IGPostEntity[
 
     // Get enabled accounts
     const accounts = (await prisma.account_entity.findMany({
-      where: { enabled: 'TRUE', accountType: 'INSTAGRAM' },
+      where: { enabled: 'TRUE', account_type_id: 1 },
       include: { instagram_user_account: true },
     })) as unknown as IGAccountEntity[]
 
@@ -220,7 +220,7 @@ const createPostAnalysis = async (
 
   // Find already existing analysis records in the database
   const postAnalysisInDb = await prisma.post_analysis.findMany({
-    where: { instagram_post_id: { in: posts.map((item) => item.instagram_post_id) } },
+    where: { instagram_post_id: { in: posts.map((item) => item.instagram_post_id!) } },
   })
 
   const postAnalysisToUpdate = postAnalysisFiltered.filter((item) =>
@@ -232,7 +232,18 @@ const createPostAnalysis = async (
     for (const post of postAnalysisToUpdate) {
       await prisma.post_analysis.update({
         where: { instagram_post_id: post.instagram_post_id },
-        data: post,
+        data: {
+          post_engagement: post.post_engagement,
+          comments_amount: post.comments_amount,
+          ammount_negative_comments: post.ammount_negative_comments,
+          ammount_positive_comments: post.ammount_positive_comments,
+          ammount_neutral_comments: post.ammount_neutral_comments,
+          createdat: post.createdat,
+          updatedat: post.updatedat,
+          post_topic_id: post.post_topic_id,
+          instagram_post_id: post.instagram_post_id,
+          post_date: post.post_date,
+        },
       })
     }
   }
@@ -244,7 +255,20 @@ const createPostAnalysis = async (
 
   // Create new analysis records in the database
   for (const post of postAnalysisToCreate) {
-    await prisma.post_analysis.create({ data: post })
+    await prisma.post_analysis.create({
+      data: {
+        post_engagement: post.post_engagement,
+        comments_amount: post.comments_amount,
+        ammount_negative_comments: post.ammount_negative_comments,
+        ammount_positive_comments: post.ammount_positive_comments,
+        ammount_neutral_comments: post.ammount_neutral_comments,
+        createdat: post.createdat,
+        updatedat: post.updatedat,
+        post_topic_id: post.post_topic_id,
+        instagram_post_id: post.instagram_post_id,
+        post_date: post.post_date,
+      },
+    })
   }
   return postAnalysisFiltered
 }
@@ -268,7 +292,7 @@ export const analyzePostsWithCommentsAnalyzed = async (): Promise<IGPostEntity[]
   const postsToAnalyze = await getPostsToAnalyze()
   const topics = (await prisma.post_topic.findMany()) as unknown as IGPostTopic[]
   const accounts = await prisma.account_entity.findMany({
-    where: { enabled: 'TRUE', accountType: 'INSTAGRAM' },
+    where: { enabled: 'TRUE', account_type_id: 1 },
     include: { instagram_user_account: true },
   })
 
@@ -276,9 +300,10 @@ export const analyzePostsWithCommentsAnalyzed = async (): Promise<IGPostEntity[]
   for (const post of postsToAnalyze) {
     const postTopic = await getPostTopic(post.title, topics)
     postsAnalysis.push({
-      post_topic_id: Number(postTopic.id),
-      instagram_post_id: post.id!,
+      post_topic_id: postTopic.id,
+      instagram_post_id: post.id,
       post_date: post.postDate,
+      tags: postTopic.tags.join(','),
     })
   }
 

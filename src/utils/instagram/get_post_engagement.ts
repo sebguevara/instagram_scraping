@@ -7,5 +7,5 @@ import type { IGPostEntity } from '@/interfaces'
  * @returns {number} The engagement of the post
  */
 export const getPostEngagement = (post: IGPostEntity, totalFollowers: number): number => {
-  return ((post.numberOfLikes + post.numberOfComments) / totalFollowers) * 100
+  return ((post.numberOfLikes! + post.numberOfComments!) / totalFollowers) * 100
 }

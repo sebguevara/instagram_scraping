@@ -9,7 +9,7 @@ export interface IGPostEntity {
   scrapDate: Date
   postDate: Date
   type: 'POST' | 'REEL'
-  link?: string
+  link: string
   artificialLikes?: boolean
   accountId: number
 }
@@ -47,5 +47,6 @@ export interface IGPostAnalysis {
 
 export interface IGPostTopicResponse {
   topic: string
+  tags: string[]
   id: number
 }

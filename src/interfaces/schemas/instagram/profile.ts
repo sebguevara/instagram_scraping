@@ -1,19 +1,17 @@
 export interface IGAccountEntity {
   id?: number
   accountURL: string
-  accountType: string
   enabled: 'TRUE' | 'FALSE'
-  accountCategory?: IGAccountCategoryEntity
   account_type_id?: number
   account_category_id?: number
-  accounttype?: IGAccountTypeCategoryEntity
-  accountcategory?: IGAccountTypeCategoryEntity
+  accounttype?: IGAccountTypeEntity
+  accountcategory?: IGAccountCategoryEntity
   instagram_user_account?: IGInstagramUserAccountEntity
 }
 
-export interface IGAccountTypeCategoryEntity {
+export interface IGAccountTypeEntity {
   id?: number
-  name: string
+  name: 'INSTAGRAM' | 'FACEBOOK'
   description?: string
   createdat?: Date
 }
