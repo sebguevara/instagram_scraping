@@ -14,9 +14,9 @@ model account_entity {
   account_type_id          Int?                        @default(1)
   account_category_id      Int?                        @default(3)
   main_entity_id           Int?
-  main_entity              main_entity?                @relation(fields: [main_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   account_category         account_category?           @relation(fields: [account_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_account_entity_account_category")
   account_type             account_type?               @relation(fields: [account_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_account_entity_account_type")
+  main_entity              main_entity?                @relation(fields: [main_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_account_entity_main_entity")
   facebook_account_history facebook_account_history[]
   facebook_user_account    facebook_user_account?
   history_entity           history_entity[]
@@ -26,6 +26,10 @@ model account_entity {
   @@index([account_category_id], map: "idx_account_entity_account_category_id")
   @@index([account_type_id], map: "idx_account_entity_account_type_id")
   @@index([main_entity_id], map: "idx_account_entity_main_entity")
+  @@index([account_category_id], map: "idx_account_entity_category")
+  @@index([enabled, account_category_id, id, accountURL], map: "idx_account_entity_complex")
+  @@index([enabled, account_category_id], map: "idx_account_entity_enabled_category")
+  @@index([id], map: "idx_account_entity_id")
 }
 
 model avoid_actions {
@@ -75,6 +79,9 @@ model history_entity {
   scrapDate      DateTime        @db.Timestamp(6)
   accountId      Int?
   account_entity account_entity? @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_f343483ade9434864a0adf5be17")
+
+  @@index([accountId, scrapDate(sort: Desc)], map: "idx_history_entity_account_date")
+  @@index([accountId, scrapDate(sort: Desc)], map: "idx_history_entity_account_id")
 }
 
 /// This model contains an index with non-default null sort order and requires additional setup for migrations. Visit https://pris.ly/d/default-index-null-ordering for more info.
@@ -98,6 +105,11 @@ model instagram_post {
   @@index([scrapDate, accountId, numberOfLikes, numberOfComments], map: "idx_instagram_post_date_range")
   @@index([scrapDate, numberOfLikes(sort: Desc), numberOfComments(sort: Desc)], map: "idx_instagram_post_performance")
   @@index([scrapDate(sort: Desc)], map: "idx_instagram_post_scrap_date_desc")
+  @@index([accountId, postDate], map: "idx_instagram_post_account_date")
+  @@index([accountId, postDate, id, media, title, numberOfLikes, numberOfComments, type, link], map: "idx_instagram_post_full_analysis")
+  @@index([postDate], map: "idx_instagram_post_post_date")
+  @@index([type, postDate(sort: Desc)], map: "idx_instagram_post_type_date")
+  @@index([accountId, postDate, numberOfLikes, numberOfComments], map: "idx_instagram_post_with_analysis")
 }
 
 /// This model contains an index with non-default null sort order and requires additional setup for migrations. Visit https://pris.ly/d/default-index-null-ordering for more info.
@@ -105,7 +117,6 @@ model instagram_user_account {
   id                Int              @id(map: "PK_02fa9f168d5aeedbb1fee8f8aea") @default(autoincrement())
   username          String           @db.VarChar
   scrapDate         DateTime         @default(now()) @db.Timestamp(6)
-  linksPosts        String[]
   profilePictureUrl String?          @db.VarChar
   accountId         Int?             @unique(map: "REL_f487bf93ea0471fdff8042ad5e")
   numberOfPosts     Float            @default(0)
@@ -115,6 +126,8 @@ model instagram_user_account {
   account_entity    account_entity?  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_f487bf93ea0471fdff8042ad5ed")
 
   @@index([scrapDate(sort: Desc)], map: "idx_instagram_user_account_scrap_date_desc")
+  @@index([accountId], map: "idx_instagram_user_account_account_id")
+  @@index([id], map: "idx_instagram_user_account_id")
 }
 
 model keep_doing_actions {
@@ -138,6 +151,8 @@ model overall_account_analysis {
   createdat          DateTime?       @default(now()) @db.Timestamp(6)
   updatedat          DateTime?       @default(now()) @db.Timestamp(6)
   account_entity     account_entity? @relation(fields: [account_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([account_entity_id], map: "idx_overall_account_analysis_account_id")
 }
 
 model post_analysis {
@@ -159,6 +174,8 @@ model post_analysis {
   instagram_post            instagram_post?      @relation(fields: [instagram_post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   post_topic                post_topic?          @relation(fields: [post_topic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   recommendations           recommendations[]
+
+  @@index([instagram_post_id], map: "idx_post_analysis_instagram_post_id")
 }
 
 model post_topic {
@@ -173,6 +190,7 @@ model post_topic {
   account_category       account_category?        @relation(fields: [account_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_post_topic_account_category")
 
   @@index([account_category_id], map: "idx_post_topic_account_category_id")
+  @@index([id], map: "idx_post_topic_id")
 }
 
 model recommendations {
@@ -197,7 +215,7 @@ model facebook_post {
   accountid               Int?
   link                    String?
   facebook_comment_entity facebook_comment_entity[]
-  facebook_user_account   facebook_user_account?    @relation(fields: [accountid], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  facebook_user_account   facebook_user_account?    @relation(fields: [accountid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_facebook_post_facebook_user_account")
   facebook_post_analysis  facebook_post_analysis?
 }
 

@@ -41,6 +41,7 @@ export const getPosts = async (days: number): Promise<IGPostEntity[]> => {
       username: Array.from(accountsMap.keys()),
       onlyPostsNewerThan: `${days} days`,
       skipPinnedPosts: POST_IG_ACTOR_PARAMS.skipPinnedPosts,
+      resultsLimit: POST_IG_ACTOR_PARAMS.resultsLimit,
     })
 
     // Get items (posts) from the Apify dataset
@@ -122,12 +123,9 @@ export const analyzePosts = async (posts: IGPostEntity[]): Promise<IGPostEntity[
             topic.account_category_id === account.account_category_id ||
             topic.account_category_id === 3
         )
-        console.log(filterTopics)
-
         if (filterTopics.length <= 0) return null
         const postTopic = await limit(async () => await getPostTopic(post.title, filterTopics))
         if (!postTopic) return null
-        console.log(postTopic.id)
         return {
           post_topic_id: Number(postTopic.id),
           instagram_post_id: post.id,
@@ -241,7 +239,10 @@ const createPostAnalysis = async (
     const neutralComments = commentsAmount - (negativeComments ?? 0) - (positiveComments ?? 0)
     if (!postWithEngagement) return null
     return {
-      ...post,
+      post_topic_id: post.post_topic_id,
+      instagram_post_id: post.instagram_post_id,
+      post_date: post.post_date,
+      tags: post.tags,
       post_engagement: postWithEngagement.post_engagement,
       comments_amount: commentsAmount,
       ammount_negative_comments: negativeComments,
@@ -280,6 +281,7 @@ const createPostAnalysis = async (
           post_topic_id: post.post_topic_id,
           instagram_post_id: post.instagram_post_id,
           post_date: post.post_date,
+          tags: post.tags,
         },
       })
     }
@@ -304,6 +306,7 @@ const createPostAnalysis = async (
         post_topic_id: post.post_topic_id,
         instagram_post_id: post.instagram_post_id,
         post_date: post.post_date,
+        tags: post.tags,
       },
     })
   }
@@ -335,7 +338,15 @@ export const analyzePostsWithCommentsAnalyzed = async (): Promise<IGPostEntity[]
 
   const postsAnalysis: IGPostAnalysis[] = []
   for (const post of postsToAnalyze) {
-    const postTopic = await getPostTopic(post.title, topics)
+    const account = accounts.find((item) => item.id === post.accountId)
+    if (!account) continue
+    const filterTopics = topics.filter(
+      (topic) =>
+        topic.account_category_id === account.account_category_id || topic.account_category_id === 3
+    )
+    if (filterTopics.length <= 0) continue
+
+    const postTopic = await getPostTopic(post.title, filterTopics)
     postsAnalysis.push({
       post_topic_id: postTopic.id,
       instagram_post_id: post.id!,

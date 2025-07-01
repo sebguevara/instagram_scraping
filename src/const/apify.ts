@@ -8,6 +8,7 @@ export const APIFY_IG_ACTORS = {
 // Post actor params
 export const POST_IG_ACTOR_PARAMS = {
   skipPinnedPosts: true,
+  resultsLimit: 10000,
 }
 
 // Comment actor params
