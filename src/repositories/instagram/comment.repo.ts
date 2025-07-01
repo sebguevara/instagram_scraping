@@ -4,7 +4,7 @@ import { getAnalyzedComment, getPostByUrl } from '@/utils'
 import { mapApifyCommentToComment } from '@/mappers'
 import type {
   ApifyIGCommentResponse,
-  IGCommentAnalysisEntity,
+  IGCommentAnalysis,
   IGCommentEntity,
   IGPostEntity,
 } from '@/interfaces'
@@ -18,7 +18,7 @@ import pLimit from 'p-limit'
  * @returns {Promise<CommentAnalysisEntity[]>} List of analyzed comments
  * @throws {Error} If no comment data is found or if an unexpected error occurs
  */
-export const createComments = async (posts: IGPostEntity[]): Promise<IGCommentAnalysisEntity[]> => {
+export const createComments = async (posts: IGPostEntity[]): Promise<IGCommentAnalysis[]> => {
   try {
     // Map Instagram post IDs to database post IDs
     const igIdPostIdMap = new Map(posts.map((item) => [getPostByUrl(item.link), item.id]))
@@ -32,7 +32,7 @@ export const createComments = async (posts: IGPostEntity[]): Promise<IGCommentAn
     // Get items (comments) from the Apify dataset
     const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
     const data = items as unknown as ApifyIGCommentResponse[]
-    if (data.length <= 0) throw new Error('No data found')
+    if (data.length <= 0) return []
 
     // Filter out duplicate or invalid comments
     const dataFiltered = data.filter(
@@ -101,7 +101,7 @@ export const createComments = async (posts: IGPostEntity[]): Promise<IGCommentAn
  */
 export const createCommentAnalysis = async (
   comments: IGCommentEntity[]
-): Promise<IGCommentAnalysisEntity[]> => {
+): Promise<IGCommentAnalysis[]> => {
   try {
     // Limit concurrency to 10 for analysis requests
     const limit = pLimit(8)
@@ -123,7 +123,7 @@ export const createCommentAnalysis = async (
           }
         })
       )
-    )) as unknown as IGCommentAnalysisEntity[]
+    )) as unknown as IGCommentAnalysis[]
 
     // Find already existing analysis records in the database
     const commentAnalysisInDb = await prisma.comment_analysis.findMany({

@@ -13,6 +13,8 @@ model account_entity {
   enabled                  account_entity_enabled_enum @default(TRUE)
   account_type_id          Int?                        @default(1)
   account_category_id      Int?                        @default(3)
+  main_entity_id           Int?
+  main_entity              main_entity?                @relation(fields: [main_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   account_category         account_category?           @relation(fields: [account_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_account_entity_account_category")
   account_type             account_type?               @relation(fields: [account_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_account_entity_account_type")
   facebook_account_history facebook_account_history[]
@@ -23,6 +25,7 @@ model account_entity {
 
   @@index([account_category_id], map: "idx_account_entity_account_category_id")
   @@index([account_type_id], map: "idx_account_entity_account_type_id")
+  @@index([main_entity_id], map: "idx_account_entity_main_entity")
 }
 
 model avoid_actions {
@@ -204,6 +207,7 @@ model account_category {
   description    String?          @db.VarChar(255)
   createdat      DateTime?        @default(now()) @db.Timestamp(6)
   account_entity account_entity[]
+  main_entity    main_entity[]
   post_topic     post_topic[]
 }
 
@@ -279,6 +283,16 @@ model facebook_user_account {
   last_scrap_date     DateTime?       @db.Date
   facebook_post       facebook_post[]
   account_entity      account_entity? @relation(fields: [accountEntityID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model main_entity {
+  id                  Int               @id @default(autoincrement())
+  name                String            @db.VarChar
+  description         String?
+  account_category_id Int?
+  createdat           DateTime?         @default(now()) @db.Timestamp(6)
+  account_entity      account_entity[]
+  account_category    account_category? @relation(fields: [account_category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 enum instagram_post_type_enum {

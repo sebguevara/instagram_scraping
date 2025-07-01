@@ -6,19 +6,19 @@ export interface IGCommentEntity {
   scrapDate: Date
   commentDate: Date
   originalCommentId?: number
-  postId: number
   instagramid?: string
+  postId: number
 }
 
-export interface IGCommentAnalysisEntity {
+export interface IGCommentAnalysis {
   id?: number
-  comment_entity_id: number
-  post_id: number
   emotion: string
   topic: string
   request: string
   analyzedat?: Date
   updatedat?: Date
+  comment_entity_id: number
+  post_id: number
 }
 
 export interface IGCommentAnalysisRequest {

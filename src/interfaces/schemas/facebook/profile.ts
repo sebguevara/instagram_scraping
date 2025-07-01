@@ -1,20 +1,20 @@
 export interface FBUserAccountEntity {
   id?: number
-  accountEntityID?: number
   name: string
   username: string
   likes?: number
-  followers?: number
+  followers: number
   profilePictureURL?: string
-  publication_ammount?: number
-  last_scrap_date?: Date
+  publication_ammount: number
+  last_scrap_date: Date
+  accountEntityID: number
 }
 
-export interface FBAccountHistoryEntity {
+export interface FBHistoryEntity {
   id?: number
-  accountEntityID?: number
   scrap_date: Date
   username: string
   followers: number
   likes: number
+  accountEntityID: number
 }

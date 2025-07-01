@@ -1,10 +1,10 @@
 import { apifyClient, prisma } from '@/config'
 import { APIFY_IG_ACTORS } from '@/const'
 import type {
-  IGAccountEntity,
+  AccountEntityWithRelations,
   ApifyIGProfileResponse,
   IGHistoryEntity,
-  IGInstagramUserAccountEntity,
+  IGUserAccountEntity,
 } from '@/interfaces'
 import { mapApifyProfileToUser, mapUserToPrisma } from '@/mappers'
 import { getUsername } from '@/utils'
@@ -18,23 +18,27 @@ import { getUsername } from '@/utils'
 export const updateAccounts = async (
   historyEntities: IGHistoryEntity[],
   dataApify: ApifyIGProfileResponse[]
-): Promise<IGInstagramUserAccountEntity[]> => {
+): Promise<IGUserAccountEntity[]> => {
   const accounts = (await prisma.account_entity.findMany({
     where: { enabled: 'TRUE', account_type_id: 1 },
-  })) as unknown as IGAccountEntity[]
+    include: { instagram_user_account: true },
+  })) as unknown as AccountEntityWithRelations[]
 
   const accountUpdates = accounts.map((account) => {
     const history = historyEntities.find((history) => history.accountId === account.id)
+    if (!history) return null
+
     const profileData = dataApify.find((item) => item.username === getUsername(account.accountURL))
     return {
-      where: { id: account.id },
-      data: mapUserToPrisma(history!, profileData!),
+      where: { id: account.instagram_user_account?.id },
+      data: mapUserToPrisma(history, profileData!),
     }
   })
+  const filteredAccountUpdates = accountUpdates.filter((update) => update !== null)
 
   const updatedAccounts = (await Promise.all(
-    accountUpdates.map((update) => prisma.instagram_user_account.update(update))
-  )) as unknown as IGInstagramUserAccountEntity[]
+    filteredAccountUpdates.map((update) => prisma.instagram_user_account.update(update))
+  )) as unknown as IGUserAccountEntity[]
 
   if (updatedAccounts.length <= 0) throw new Error('No accounts updated')
 
@@ -51,7 +55,8 @@ export const createHistoryProfiles = async (): Promise<{
 }> => {
   const accounts = (await prisma.account_entity.findMany({
     where: { enabled: 'TRUE', account_type_id: 1 },
-  })) as unknown as IGAccountEntity[]
+    include: { instagram_user_account: true },
+  })) as unknown as AccountEntityWithRelations[]
 
   const accountMap = new Map(
     accounts.map((account) => [getUsername(account.accountURL), account.id])

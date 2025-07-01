@@ -25,6 +25,6 @@ Devuelve solo este JSON:
 Reglas:
 - TODO EN ESPAÑOL.
 - NO des ningún texto adicional.
+- Siempre asignar un topic y un id.
 - Los tags deben ser palabras clave relevantes al contenido del post, en minúsculas, sin espacios, sin símbolos. Mínimo 3 tags.
-- Si no se puede determinar el tema o tags, usa "desconocido" como topic y un array vacío en tags.
 `

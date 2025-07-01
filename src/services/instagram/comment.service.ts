@@ -1,4 +1,4 @@
-import type { CommentEntity, PostEntity } from '@/interfaces'
+import type { IGCommentEntity, IGPostEntity } from '@/interfaces'
 import {
   createCommentAnalysis,
   createComments,
@@ -75,6 +75,7 @@ export const syncPostCommentCounts = async (): Promise<{
         analysisCount: analysisCount,
       })
     }
+    console.log('done')
   }
 
   return {
@@ -95,7 +96,7 @@ export const scrapCommentsByDate = async (
   comments: number
   status: string
 }> => {
-  const posts = (await getPostsByDateWithComments(startDate, endDate)) as unknown as PostEntity[]
+  const posts = (await getPostsByDateWithComments(startDate, endDate)) as unknown as IGPostEntity[]
 
   if (posts.length === 0) {
     return {
@@ -122,7 +123,7 @@ export const scrapCommentsByDate = async (
  * @throws {Error} If no comments are found
  */
 export const analyzeComments = async (): Promise<{ comments: number; status: string }> => {
-  const comments = (await getCommentsByDate()) as unknown as CommentEntity[]
+  const comments = (await getCommentsByDate()) as unknown as IGCommentEntity[]
 
   if (comments.length <= 0) {
     return {

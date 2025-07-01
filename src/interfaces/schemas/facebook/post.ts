@@ -8,8 +8,8 @@ export interface FBPostEntity {
   scrapdate?: Date
   postdate: Date
   type?: string
-  accountid?: number
   link?: string
+  accountid: number
 }
 
 export interface FBPostTopic {
@@ -24,14 +24,14 @@ export interface FBPostTopic {
 
 export interface FBPostAnalysisEntity {
   id?: number
-  instagramPostID?: number
-  postTopicId?: number
-  commentsAmmount?: number
-  ammountNegativeComments?: number
-  ammountPositiveComments?: number
-  ammountNeutralComments?: number
-  generalEmotion?: string
-  postEngagement?: number
+  postTopicId: number
+  commentsAmmount: number
+  ammountNegativeComments: number
+  ammountPositiveComments: number
+  ammountNeutralComments: number
+  generalEmotion: string
+  postEngagement: number
   createdAt?: Date
   updatedAt?: Date
+  instagramPostID: number
 }
