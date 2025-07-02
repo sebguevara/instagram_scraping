@@ -2,6 +2,8 @@ import {
   getPosts,
   analyzePosts,
   analyzePostsWithCommentsAnalyzed,
+  addCommentsToPostAnalysis,
+  removeDuplicatedPosts,
 } from '@/repositories/instagram/post.repo'
 
 /**
@@ -11,28 +13,23 @@ import {
  */
 export const scrapPostComments = async (
   days: number
-): Promise<{ posts: number; status: string }> => {
+): Promise<{
+  posts_created: number
+  posts_analyzed: number
+  status: string
+}> => {
   const posts = await getPosts(days)
-  if (posts.length <= 0) {
-    return {
-      posts: 0,
-      status: 'success',
-    }
-  }
-
-  console.log('HHola?', posts.length)
+  if (posts.length <= 0) return { posts_created: 0, posts_analyzed: 0, status: 'success' }
 
   const postsToAnalyze = await analyzePosts(posts)
-  if (postsToAnalyze.length <= 0) {
-    return {
-      posts: 0,
-      status: 'success',
-    }
-  }
-  console.log('Done')
+  if (postsToAnalyze.length <= 0) return { posts_created: 0, posts_analyzed: 0, status: 'success' }
 
+  const postsFull = await addCommentsToPostAnalysis(posts, postsToAnalyze)
+
+  console.log('Done')
   return {
-    posts: postsToAnalyze.length,
+    posts_created: posts.length,
+    posts_analyzed: postsFull.length,
     status: 'success',
   }
 }
@@ -74,6 +71,21 @@ export const createPostsWithoutAnalysis = async (): Promise<{ posts: number; sta
   }
   return {
     posts: postsToAnalyze.length,
+    status: 'success',
+  }
+}
+
+/**
+ * Removes duplicated posts from the database.
+ * @returns {Promise<{ posts_removed: number; status: string }>} Object containing the number of posts removed and the status
+ */
+export const removeAllDuplicatedPosts = async (): Promise<{
+  posts_removed: number
+  status: string
+}> => {
+  const postsRemoved = await removeDuplicatedPosts()
+  return {
+    posts_removed: postsRemoved,
     status: 'success',
   }
 }

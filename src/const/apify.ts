@@ -13,7 +13,7 @@ export const POST_IG_ACTOR_PARAMS = {
 
 // Comment actor params
 export const COMMENT_IG_ACTOR_PARAMS = {
-  maxItems: 8000,
+  maxItems: 10000,
 }
 
 export const APIFY_FB_ACTORS = {

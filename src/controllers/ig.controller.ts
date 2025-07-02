@@ -1,5 +1,9 @@
 import { createProfileHistory } from '@/services/instagram/profile.service'
-import { scrapJustPosts, scrapPostComments } from '@/services/instagram/post.service'
+import {
+  removeAllDuplicatedPosts,
+  scrapJustPosts,
+  scrapPostComments,
+} from '@/services/instagram/post.service'
 import { scrapCommentsByDate, syncPostCommentCounts } from '@/services/instagram/comment.service'
 import type { Response, Request } from 'express'
 
@@ -85,6 +89,25 @@ export const scrapCommentsByDateController = async (req: Request, res: Response)
 export const scrapJustPostsController = async (req: Request, res: Response): Promise<void> => {
   try {
     const data = await scrapJustPosts(1)
+    res.status(200).json(data)
+  } catch (error: unknown) {
+    console.error(error)
+    res.status(500).json({ message: (error as Error).message })
+  }
+}
+
+/**
+ * Removes all duplicated posts from the database.
+ * @param {Request} req - The request object
+ * @param {Response} res - The response object
+ * @returns {Promise<void>} A summary of the operation
+ */
+export const removeAllDuplicatedPostsController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const data = await removeAllDuplicatedPosts()
     res.status(200).json(data)
   } catch (error: unknown) {
     console.error(error)

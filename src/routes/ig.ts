@@ -2,6 +2,7 @@ import { Router } from 'express'
 import {
   createPostCommentsController,
   createProfileHistoryController,
+  removeAllDuplicatedPostsController,
   scrapCommentsByDateController,
   scrapJustPostsController,
   syncPostCommentsController,
@@ -14,5 +15,6 @@ router.get('/post', createPostCommentsController)
 router.get('/post/scrap', scrapJustPostsController)
 router.get('/comments/sync', syncPostCommentsController)
 router.get('/comments/scrap', scrapCommentsByDateController)
+router.get('/post/remove-duplicated', removeAllDuplicatedPostsController)
 
 export default router
