@@ -1,4 +1,4 @@
-export const OPENAI_MODEL = 'gpt-4o-mini'
+export const OPENAI_MODEL = 'gpt-3.5-turbo'
 export const OPENAI_TEMPERATURE = 0.1
 export const OPENAI_MAX_TOKENS_COMMENT = 80
 export const OPENAI_MAX_TOKENS_POST = 200

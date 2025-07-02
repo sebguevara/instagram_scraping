@@ -24,7 +24,7 @@ export const getPosts = async (days: number): Promise<IGPostEntity[]> => {
   try {
     // Get enabled accounts from the database
     const accounts = (await prisma.account_entity.findMany({
-      where: { enabled: 'TRUE', account_type_id: 1 },
+      where: { enabled: 'TRUE', account_type_id: 1, account_category_id: 2 },
       include: { instagram_user_account: true },
     })) as unknown as AccountEntityWithRelations[]
 
@@ -37,15 +37,15 @@ export const getPosts = async (days: number): Promise<IGPostEntity[]> => {
     ) as Map<string | null, number>
 
     // Call Apify actor to get user posts
-    const { defaultDatasetId } = await apifyClient.actor(APIFY_IG_ACTORS.POST_ACTOR).call({
-      username: Array.from(accountsMap.keys()),
-      onlyPostsNewerThan: `${days} days`,
-      skipPinnedPosts: POST_IG_ACTOR_PARAMS.skipPinnedPosts,
-      resultsLimit: POST_IG_ACTOR_PARAMS.resultsLimit,
-    })
+    // const { defaultDatasetId } = await apifyClient.actor(APIFY_IG_ACTORS.POST_ACTOR).call({
+    //   username: Array.from(accountsMap.keys()),
+    //   onlyPostsNewerThan: `${days} days`,
+    //   skipPinnedPosts: POST_IG_ACTOR_PARAMS.skipPinnedPosts,
+    //   resultsLimit: POST_IG_ACTOR_PARAMS.resultsLimit,
+    // })
 
     // Get items (posts) from the Apify dataset
-    const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
+    const { items } = await apifyClient.dataset('ADfuJeWRvTfZYfW1a').listItems()
     const data = items as unknown as ApifyIGPostResponse[]
 
     if (data.length <= 0) return []
@@ -58,8 +58,15 @@ export const getPosts = async (days: number): Promise<IGPostEntity[]> => {
 
     // Find already existing posts in the database
     const posts = await prisma.instagram_post.findMany({
-      where: { link: { in: dataFiltered.map((item) => item.url) } },
+      where: {
+        link: { in: dataFiltered.map((item) => item.url) },
+        postDate: {
+          gte: new Date(new Date().setDate(new Date().getDate() - days)),
+        },
+      },
     })
+
+    console.log('data', data.length)
 
     // Update existing posts
     for (const post of posts) {
@@ -83,6 +90,8 @@ export const getPosts = async (days: number): Promise<IGPostEntity[]> => {
     const postsFromDb = (await prisma.instagram_post.findMany({
       where: { link: { in: postsMapped.map((item) => item.link) } },
     })) as unknown as IGPostEntity[]
+
+    console.log('postsFromDb', postsFromDb.length)
 
     return postsFromDb
   } catch (error) {
@@ -108,9 +117,11 @@ export const analyzePosts = async (posts: IGPostEntity[]): Promise<IGPostEntity[
 
     // Get enabled accounts
     const accounts = (await prisma.account_entity.findMany({
-      where: { enabled: 'TRUE', account_type_id: 1 },
+      where: { enabled: 'TRUE', account_type_id: 1, account_category_id: 2 },
       include: { instagram_user_account: true },
     })) as unknown as AccountEntityWithRelations[]
+
+    console.log('Hola?', posts.length)
 
     // Assign topics to posts
     const limit = pLimit(8)
@@ -227,6 +238,8 @@ const createPostAnalysis = async (
       ?.comment_analysis?.length
 
     if (commentsAmount === undefined) return null
+
+    console.log(commentsAmount, post.instagram_post_id, postsWithAnalysis.length, 'dsflnsdf')
 
     const negativeComments = postsWithAnalysis
       .find((item) => item.id === post.instagram_post_id)
@@ -371,6 +384,8 @@ export const analyzePostsWithCommentsAnalyzed = async (): Promise<IGPostEntity[]
     where: { id: { in: postsToAnalyze.map((item) => item.id!) } },
     include: { comment_analysis: true, post_analysis: true },
   })) as unknown as IGPostEntityWithRelations[]
+
+  console.log('Probando ', postsWithAnalysis.length)
 
   // Create post analysis in the database
   await createPostAnalysis(postsAnalysis, postsWithEngagement, postsWithAnalysis)

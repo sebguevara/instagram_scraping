@@ -20,6 +20,8 @@ export const scrapPostComments = async (
     }
   }
 
+  console.log('HHola?', posts.length)
+
   const postsToAnalyze = await analyzePosts(posts)
   if (postsToAnalyze.length <= 0) {
     return {
@@ -63,6 +65,7 @@ export const scrapJustPosts = async (days: number): Promise<{ posts: number; sta
  */
 export const createPostsWithoutAnalysis = async (): Promise<{ posts: number; status: string }> => {
   const postsToAnalyze = await analyzePostsWithCommentsAnalyzed()
+  console.log(postsToAnalyze.length)
   if (postsToAnalyze.length <= 0) {
     return {
       posts: 0,
