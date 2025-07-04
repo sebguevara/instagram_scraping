@@ -32,8 +32,8 @@ export const syncPostCommentCounts = async (): Promise<{
   }[]
   status: string
 }> => {
-  await analyzeComments()
-  await createPostsWithoutAnalysis()
+  // await analyzeComments()
+  await createPostsWithoutAnalysis(1)
   const posts = await getPostsWithCommentsAndAnalysis()
 
   if (posts.length === 0) {

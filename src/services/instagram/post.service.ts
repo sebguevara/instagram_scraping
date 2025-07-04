@@ -12,19 +12,20 @@ import {
  * @throws {Error} If no posts are found or if no posts are to analyze
  */
 export const scrapPostComments = async (
-  days: number
+  days: number,
+  categoryId: number
 ): Promise<{
   posts_created: number
   posts_analyzed: number
   status: string
 }> => {
-  const posts = await getPosts(days)
+  const posts = await getPosts(days, categoryId)
   if (posts.length <= 0) return { posts_created: 0, posts_analyzed: 0, status: 'success' }
 
-  const postsToAnalyze = await analyzePosts(posts)
-  if (postsToAnalyze.length <= 0) return { posts_created: 0, posts_analyzed: 0, status: 'success' }
+  console.log(posts.length)
+  await analyzePosts(posts, categoryId)
 
-  const postsFull = await addCommentsToPostAnalysis(posts, postsToAnalyze)
+  const postsFull = await addCommentsToPostAnalysis(posts, categoryId)
 
   console.log('Done')
   return {
@@ -40,8 +41,11 @@ export const scrapPostComments = async (
  * @returns {Promise<{ posts: number; status: string }>} Object containing the number of posts scraped and the status
  * @throws {Error} If no posts are found
  */
-export const scrapJustPosts = async (days: number): Promise<{ posts: number; status: string }> => {
-  const posts = await getPosts(days)
+export const scrapJustPosts = async (
+  days: number,
+  categoryId: number
+): Promise<{ posts: number; status: string }> => {
+  const posts = await getPosts(days, categoryId)
   if (posts.length <= 0) {
     return {
       posts: 0,
@@ -60,8 +64,10 @@ export const scrapJustPosts = async (days: number): Promise<{ posts: number; sta
  * @returns {Promise<{ posts: number; status: string }>} Object containing the number of posts analyzed and the status
  * @throws {Error} If no posts are found
  */
-export const createPostsWithoutAnalysis = async (): Promise<{ posts: number; status: string }> => {
-  const postsToAnalyze = await analyzePostsWithCommentsAnalyzed()
+export const createPostsWithoutAnalysis = async (
+  categoryId: number
+): Promise<{ posts: number; status: string }> => {
+  const postsToAnalyze = await analyzePostsWithCommentsAnalyzed(categoryId)
   console.log(postsToAnalyze.length)
   if (postsToAnalyze.length <= 0) {
     return {

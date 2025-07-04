@@ -95,7 +95,7 @@ model instagram_post {
   postDate               DateTime                 @default(now()) @db.Timestamptz(6)
   type                   instagram_post_type_enum @default(POST)
   accountId              Int?
-  link                   String?
+  link                   String?                  @unique
   artificialLikes        Boolean?                 @default(false)
   comment_analysis       comment_analysis[]
   comment_entity         comment_entity[]

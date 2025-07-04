@@ -52,6 +52,7 @@ export const createComments = async (posts: IGPostEntity[]): Promise<IGCommentAn
     for (const comment of commentsInDb) {
       const commentData = commentsMapped.find((item) => item.instagramid === comment.instagramid)
       if (!commentData) continue
+      console.log('commentData', commentData)
       await prisma.comment_entity.update({ where: { id: comment.id }, data: commentData })
     }
 
@@ -61,6 +62,7 @@ export const createComments = async (posts: IGPostEntity[]): Promise<IGCommentAn
 
     if (commentsToCreate.length > 0) {
       for (const comment of commentsToCreate) {
+        console.log('comment', comment)
         await prisma.comment_entity.create({ data: comment })
       }
     }
@@ -91,7 +93,8 @@ export const createCommentAnalysis = async (
   comments: IGCommentEntity[]
 ): Promise<IGCommentAnalysis[]> => {
   try {
-    const limit = pLimit(10)
+    const limit = pLimit(20)
+
     const commentAnalysis = (await Promise.all(
       comments.map((comment) =>
         limit(async () => {
@@ -107,27 +110,30 @@ export const createCommentAnalysis = async (
           }
         })
       )
-    )) as unknown as IGCommentAnalysis[]
+    )) as IGCommentAnalysis[]
 
     const commentAnalysisInDb = await prisma.comment_analysis.findMany({
-      where: { comment_entity_id: { in: commentAnalysis.map((item) => item.comment_entity_id) } },
+      where: {
+        comment_entity_id: {
+          in: commentAnalysis.map((item) => item.comment_entity_id),
+        },
+      },
     })
 
-    const commentAnalysisToUpdate = commentAnalysisInDb.filter(
-      (item) => !commentAnalysis.some((c) => c.comment_entity_id === item.comment_entity_id)
+    const commentAnalysisToUpdate = commentAnalysisInDb.filter((item) =>
+      commentAnalysis.some((c) => c.comment_entity_id === item.comment_entity_id)
     )
 
-    if (commentAnalysisToUpdate.length > 0) {
-      for (const comment of commentAnalysisToUpdate) {
-        const commentAnalysisToUpdate = commentAnalysis.find(
-          (item) => item.comment_entity_id === comment.comment_entity_id
-        )
-        if (!commentAnalysisToUpdate) continue
-        await prisma.comment_analysis.update({
-          where: { id: comment.id },
-          data: commentAnalysisToUpdate,
-        })
-      }
+    for (const existing of commentAnalysisToUpdate) {
+      const updateData = commentAnalysis.find(
+        (c) => c.comment_entity_id === existing.comment_entity_id
+      )
+      if (!updateData) continue
+
+      await prisma.comment_analysis.update({
+        where: { id: existing.id },
+        data: updateData,
+      })
     }
 
     const commentAnalysisToCreate = commentAnalysis.filter(
@@ -135,8 +141,34 @@ export const createCommentAnalysis = async (
     )
 
     for (const comment of commentAnalysisToCreate) {
-      await prisma.comment_analysis.create({ data: comment })
+      const commentEntity = await prisma.comment_entity.findUnique({
+        where: { id: comment.comment_entity_id },
+      })
+
+      if (!commentEntity) {
+        const original = comments.find((c) => c.id === comment.comment_entity_id)
+        if (original) {
+          const entityData = {
+            comment: original.comment,
+            commentOwnerName: original.commentOwnerName,
+            post_id: original.postId,
+            likesOfComment: original.likesOfComment ?? 0,
+            scrapDate: original.scrapDate,
+            commentDate: original.commentDate,
+            instagramid: original.instagramid,
+          }
+
+          await prisma.comment_entity.create({
+            data: entityData as unknown as IGCommentEntity,
+          })
+        }
+      }
+
+      await prisma.comment_analysis.create({
+        data: comment,
+      })
     }
+
     return commentAnalysis
   } catch (error) {
     console.error('Error in createCommentAnalysis:', error)

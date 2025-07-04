@@ -34,8 +34,8 @@ export const createProfileHistoryController = async (
  */
 export const createPostCommentsController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { days } = req.query
-    const data = await scrapPostComments(Number(days))
+    const { days, categoryId } = req.query
+    const data = await scrapPostComments(Number(days), Number(categoryId))
     res.status(200).json(data)
   } catch (error: unknown) {
     console.error(error)
@@ -88,7 +88,8 @@ export const scrapCommentsByDateController = async (req: Request, res: Response)
  */
 export const scrapJustPostsController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const data = await scrapJustPosts(1)
+    const { categoryId } = req.query
+    const data = await scrapJustPosts(1, Number(categoryId))
     res.status(200).json(data)
   } catch (error: unknown) {
     console.error(error)

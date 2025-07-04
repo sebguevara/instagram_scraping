@@ -16,9 +16,9 @@ import pLimit from 'p-limit'
  * Retrieves enabled accounts from the database.
  * @returns {Promise<AccountEntityWithRelations[]>} List of enabled accounts
  */
-const getEnabledAccounts = async (): Promise<AccountEntityWithRelations[]> => {
+const getEnabledAccounts = async (categoryId: number): Promise<AccountEntityWithRelations[]> => {
   return (await prisma.account_entity.findMany({
-    where: { enabled: 'TRUE', account_type_id: 1, account_category_id: 2 },
+    where: { enabled: 'TRUE', account_type_id: 1, account_category_id: categoryId },
     include: { instagram_user_account: true },
   })) as unknown as AccountEntityWithRelations[]
 }
@@ -65,7 +65,16 @@ const updateExistingPosts = async (
  * @returns {Promise<void>} Promise that resolves when the posts are created
  */
 const createNewPosts = async (postsToCreate: IGPostEntity[]): Promise<void> => {
-  for (const post of postsToCreate) {
+  const existingPosts = await prisma.instagram_post.findMany({
+    where: { link: { in: postsToCreate.map((p) => p.link) } },
+    select: { link: true },
+  })
+  const existingLinks = new Set(existingPosts.map((p) => p.link))
+
+  const postsToReallyCreate = postsToCreate.filter((post) => !existingLinks.has(post.link))
+  console.log('postsToReallyCreate', postsToReallyCreate.length)
+
+  for (const post of postsToReallyCreate) {
     await prisma.instagram_post.create({ data: post })
   }
 }
@@ -122,9 +131,9 @@ const mapAndFilterApifyPosts = async (
  * @returns {Promise<PostEntity[]>} List of posts obtained and stored in the database
  * @throws {Error} If no post data is found or if an unexpected error occurs
  */
-export const getPosts = async (days: number): Promise<IGPostEntity[]> => {
+export const getPosts = async (days: number, categoryId: number): Promise<IGPostEntity[]> => {
   try {
-    const accounts = await getEnabledAccounts()
+    const accounts = await getEnabledAccounts(categoryId)
     const accountsMap = new Map(
       accounts.map((account) => [
         getUsername(account.accountURL),
@@ -171,14 +180,17 @@ export const getPosts = async (days: number): Promise<IGPostEntity[]> => {
  * @returns {Promise<PostEntity[]>} List of analyzed posts
  * @throws {Error} If no topics or comment analysis are found or if an unexpected error occurs
  */
-export const analyzePosts = async (posts: IGPostEntity[]): Promise<IGPostAnalysis[]> => {
+export const analyzePosts = async (
+  posts: IGPostEntity[],
+  categoryId: number
+): Promise<IGPostAnalysis[]> => {
   try {
     const topics = await getAvailableTopics()
     if (topics.length <= 0) return []
 
-    const accounts = await getEnabledAccounts()
+    const accounts = await getEnabledAccounts(categoryId)
 
-    const limit = pLimit(8)
+    const limit = pLimit(20)
     const postsAnalysis = (await Promise.all(
       posts.map(async (post) => {
         const account = accounts.find((item) => item.instagram_user_account?.id === post.accountId)
@@ -249,11 +261,18 @@ export const analyzePosts = async (posts: IGPostEntity[]): Promise<IGPostAnalysi
  */
 export const addCommentsToPostAnalysis = async (
   posts: IGPostEntity[],
-  postsToAnalyze: IGPostAnalysis[]
+  categoryId: number
 ): Promise<IGPostAnalysis[]> => {
-  // create comments for this posts
-  const accounts = await getEnabledAccounts()
+  const accounts = await getEnabledAccounts(categoryId)
   const commentsAnalysis = await createComments(posts)
+
+  console.log('commentsAnalysis', commentsAnalysis.length)
+
+  // get postsanalyze by posts
+  const postsAnalyzed = await prisma.post_analysis.findMany({
+    where: { instagram_post_id: { in: posts.map((item) => item.id!) } },
+  })
+  const postsAnalyzedMap = new Map(postsAnalyzed.map((item) => [item.instagram_post_id, item]))
 
   const postsWithEngagement = posts.map((post) => {
     const account = accounts.find((item) => item.id === post.accountId)
@@ -266,10 +285,14 @@ export const addCommentsToPostAnalysis = async (
   }) as unknown as { post_engagement: number; post_id: number }[]
 
   const postAnalysisToUpdate = posts.map((post) => {
-    const postWithEngagement = postsWithEngagement.find((item) => item.post_id === post.id)
+    if (!post) return null
+
+    const postsWithEngagementFiltered = postsWithEngagement.filter((item) => item !== null)
+
+    const postWithEngagement = postsWithEngagementFiltered.find((item) => item.post_id === post.id)
     const commentsAmount = commentsAnalysis.filter((item) => item.post_id === post.id).length
 
-    const postAnalyzed = postsToAnalyze.find((item) => item.instagram_post_id === post.id)
+    const postAnalyzed = postsAnalyzedMap.get(post.id!)
     if (!postAnalyzed) return null
 
     const negativeComments = commentsAnalysis
@@ -331,10 +354,12 @@ export const getPostsToAnalyze = async (): Promise<IGPostEntity[]> => {
  * Creates post analysis records in the database.
  * @returns {Promise<PostEntity[]>} List of posts that have not been analyzed yet
  */
-export const analyzePostsWithCommentsAnalyzed = async (): Promise<IGPostEntity[]> => {
+export const analyzePostsWithCommentsAnalyzed = async (
+  categoryId: number
+): Promise<IGPostEntity[]> => {
   const postsToAnalyze = await getPostsToAnalyze()
   const topics = await getAvailableTopics()
-  const accounts = await getEnabledAccounts()
+  const accounts = await getEnabledAccounts(categoryId)
 
   const postsAnalysis: IGPostAnalysis[] = []
   for (const post of postsToAnalyze) {
@@ -349,7 +374,7 @@ export const analyzePostsWithCommentsAnalyzed = async (): Promise<IGPostEntity[]
     const postTopic = await getPostTopic(post.title, filterTopics)
     if (!postTopic) return []
     postsAnalysis.push({
-      post_topic_id: postTopic.id,
+      post_topic_id: Number(postTopic.id),
       instagram_post_id: post.id!,
       post_date: post.postDate,
       tags: postTopic.tags.join(','),
@@ -358,11 +383,7 @@ export const analyzePostsWithCommentsAnalyzed = async (): Promise<IGPostEntity[]
 
   await createPostAnalysis(postsAnalysis)
 
-  const postsAnalyzedCreated = (await prisma.post_analysis.findMany({
-    where: { instagram_post_id: { in: postsToAnalyze.map((item) => item.id!) } },
-  })) as unknown as IGPostAnalysis[]
-
-  await addCommentsToPostAnalysis(postsToAnalyze, postsAnalyzedCreated)
+  await addCommentsToPostAnalysis(postsToAnalyze, categoryId)
   return postsToAnalyze
 }
 
@@ -385,10 +406,19 @@ export const removeDuplicatedPosts = async (): Promise<number> => {
     where: { postId: { in: postsWithDuplicatedLink.map((item) => item.id) } },
   })
   for (const comment of comments) {
-    await prisma.comment_analysis.delete({ where: { comment_entity_id: comment.id } })
+    console.log('comment', comment.id)
+
+    const commentAnalysis = await prisma.comment_analysis.findFirst({
+      where: { comment_entity_id: comment.id },
+    })
+    if (commentAnalysis) {
+      await prisma.comment_analysis.delete({ where: { id: commentAnalysis.id } })
+    }
+
     await prisma.comment_entity.delete({ where: { id: comment.id } })
   }
 
+  // delete posts analysis
   const postsAnalysis = await prisma.post_analysis.findMany({
     where: { instagram_post_id: { in: postsWithDuplicatedLink.map((item) => item.id) } },
   })
