@@ -181,11 +181,18 @@ export const createCommentAnalysis = async (
 /**
  * Gets all posts with their comments and analysis associated.
  */
-export const getPostsWithCommentsAndAnalysis = async () => {
+export const getPostsWithCommentsAndAnalysis = async (categoryId: number) => {
   return prisma.instagram_post.findMany({
     include: {
       comment_entity: true,
       comment_analysis: true,
+      instagram_user_account: {
+        where: {
+          account_entity: {
+            account_category_id: categoryId,
+          },
+        },
+      },
     },
   })
 }

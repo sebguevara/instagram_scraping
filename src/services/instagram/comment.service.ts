@@ -21,7 +21,9 @@ import { createPostsWithoutAnalysis } from './post.service'
  * @returns {Promise<{ postsUpdated: number; details: { postId: number; title: string; originalCount: number; realCount: number; analysisCount: number }[]; status: string }>}
  * @throws {Error} If no posts are found in the database.
  */
-export const syncPostCommentCounts = async (): Promise<{
+export const syncPostCommentCounts = async (
+  categoryId: number
+): Promise<{
   postsUpdated: number
   details: {
     postId: number
@@ -32,9 +34,9 @@ export const syncPostCommentCounts = async (): Promise<{
   }[]
   status: string
 }> => {
-  // await analyzeComments()
-  await createPostsWithoutAnalysis(1)
-  const posts = await getPostsWithCommentsAndAnalysis()
+  await analyzeComments()
+  await createPostsWithoutAnalysis(categoryId)
+  const posts = await getPostsWithCommentsAndAnalysis(categoryId)
 
   if (posts.length === 0) {
     return {
@@ -75,8 +77,9 @@ export const syncPostCommentCounts = async (): Promise<{
         analysisCount: analysisCount,
       })
     }
-    console.log('done')
   }
+
+  console.log('done: ', postsUpdated)
 
   return {
     postsUpdated,

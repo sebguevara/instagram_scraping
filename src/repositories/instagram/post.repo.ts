@@ -9,6 +9,7 @@ import type {
   IGPostEntity,
   IGPostTopic,
   AccountEntityWithRelations,
+  IGCommentAnalysis,
 } from '@/interfaces'
 import pLimit from 'p-limit'
 
@@ -17,10 +18,16 @@ import pLimit from 'p-limit'
  * @returns {Promise<AccountEntityWithRelations[]>} List of enabled accounts
  */
 const getEnabledAccounts = async (categoryId: number): Promise<AccountEntityWithRelations[]> => {
-  return (await prisma.account_entity.findMany({
+  const accounts = await prisma.account_entity.findMany({
     where: { enabled: 'TRUE', account_type_id: 1, account_category_id: categoryId },
     include: { instagram_user_account: true },
-  })) as unknown as AccountEntityWithRelations[]
+  })
+
+  accounts.forEach((account) => {
+    console.log('account', account.instagram_user_account?.id)
+  })
+
+  return accounts as unknown as AccountEntityWithRelations[]
 }
 
 /**
@@ -266,8 +273,6 @@ export const addCommentsToPostAnalysis = async (
   const accounts = await getEnabledAccounts(categoryId)
   const commentsAnalysis = await createComments(posts)
 
-  console.log('commentsAnalysis', commentsAnalysis.length)
-
   // get postsanalyze by posts
   const postsAnalyzed = await prisma.post_analysis.findMany({
     where: { instagram_post_id: { in: posts.map((item) => item.id!) } },
@@ -275,7 +280,7 @@ export const addCommentsToPostAnalysis = async (
   const postsAnalyzedMap = new Map(postsAnalyzed.map((item) => [item.instagram_post_id, item]))
 
   const postsWithEngagement = posts.map((post) => {
-    const account = accounts.find((item) => item.id === post.accountId)
+    const account = accounts.find((item) => item.instagram_user_account!.id === post.accountId)
     if (!account) return null
     const post_engagement = getPostEngagement(post, account.instagram_user_account!.followers)
     return {
@@ -285,11 +290,9 @@ export const addCommentsToPostAnalysis = async (
   }) as unknown as { post_engagement: number; post_id: number }[]
 
   const postAnalysisToUpdate = posts.map((post) => {
-    if (!post) return null
+    const postWithEngagement = postsWithEngagement.find((item) => item.post_id === post.id)
+    if (!postWithEngagement) return null
 
-    const postsWithEngagementFiltered = postsWithEngagement.filter((item) => item !== null)
-
-    const postWithEngagement = postsWithEngagementFiltered.find((item) => item.post_id === post.id)
     const commentsAmount = commentsAnalysis.filter((item) => item.post_id === post.id).length
 
     const postAnalyzed = postsAnalyzedMap.get(post.id!)
@@ -304,7 +307,7 @@ export const addCommentsToPostAnalysis = async (
       .filter((item) => item.emotion === 'positivo').length
 
     const neutralComments = commentsAmount - (negativeComments ?? 0) - (positiveComments ?? 0)
-    if (!postWithEngagement) return null
+
     return {
       post_topic_id: postAnalyzed.post_topic_id,
       instagram_post_id: post.id,
@@ -360,6 +363,8 @@ export const analyzePostsWithCommentsAnalyzed = async (
   const postsToAnalyze = await getPostsToAnalyze()
   const topics = await getAvailableTopics()
   const accounts = await getEnabledAccounts(categoryId)
+
+  if (postsToAnalyze.length <= 0) return []
 
   const postsAnalysis: IGPostAnalysis[] = []
   for (const post of postsToAnalyze) {
@@ -433,4 +438,100 @@ export const removeDuplicatedPosts = async (): Promise<number> => {
   }
 
   return postsWithDuplicatedLink.length
+}
+
+export const updatePostsAnalysis = async (): Promise<number> => {
+  try {
+    const postsAnalysis = (await prisma.post_analysis.findMany({
+      where: {
+        comments_amount: null,
+      },
+    })) as unknown as IGPostAnalysis[]
+    if (postsAnalysis.length <= 0) return 0
+
+    // then get all posts where id is in the postsAnalysis
+    const posts = (await prisma.instagram_post.findMany({
+      where: {
+        id: { in: postsAnalysis.map((item) => item.instagram_post_id) },
+      },
+    })) as unknown as IGPostEntity[]
+
+    console.log('postsAnalysis', postsAnalysis.length)
+    console.log('posts', posts.length)
+
+    const postsUpdated = await addCommentsAndUpdatePostAnalysis(posts)
+    console.log('postsUpdated', postsUpdated.length)
+
+    return postsUpdated.length
+  } catch (error) {
+    console.error('Error in updatePostsAnalysis:', error)
+    throw new Error(
+      'Failed to update posts analysis: ' + (error instanceof Error ? error.message : String(error))
+    )
+  }
+}
+
+export const addCommentsAndUpdatePostAnalysis = async (
+  posts: IGPostEntity[]
+): Promise<IGPostAnalysis[]> => {
+  const accounts = await getEnabledAccounts(1)
+
+  const postsWithEngagement = posts.map((post) => {
+    const account = accounts.find((item) => item.instagram_user_account?.id === post.accountId)
+
+    if (!account) return null
+
+    const post_engagement = getPostEngagement(post, account.instagram_user_account!.followers)
+    return {
+      post_engagement,
+      post_id: post.id,
+    }
+  }) as unknown as { post_engagement: number; post_id: number }[]
+
+  const postsWithEngagementFiltered = postsWithEngagement.filter((item) => item !== null)
+  const commentsAnalysis = (await prisma.comment_analysis.findMany({
+    where: { post_id: { in: postsWithEngagementFiltered.map((item) => item.post_id) } },
+  })) as unknown as IGCommentAnalysis[]
+
+  const postAnalysisToUpdate = posts.map((post) => {
+    const postWithEngagement = postsWithEngagementFiltered.find((item) => item.post_id === post.id)
+    if (!postWithEngagement) return null
+
+    console.log('postWithEngagement', postWithEngagement.post_id)
+
+    const commentsAmount = commentsAnalysis.filter((item) => item.post_id === post.id).length
+
+    const negativeComments = commentsAnalysis
+      .filter((item) => item.post_id === post.id)
+      .filter((item) => item.emotion === 'negativo').length
+
+    const positiveComments = commentsAnalysis
+      .filter((item) => item.post_id === post.id)
+      .filter((item) => item.emotion === 'positivo').length
+
+    const neutralComments = commentsAmount - (negativeComments ?? 0) - (positiveComments ?? 0)
+
+    return {
+      instagram_post_id: postWithEngagement.post_id,
+      post_engagement: postWithEngagement.post_engagement,
+      comments_amount: commentsAmount,
+      ammount_negative_comments: negativeComments,
+      ammount_positive_comments: positiveComments,
+      ammount_neutral_comments: neutralComments,
+      createdat: new Date(),
+    }
+  }) as unknown as IGPostAnalysis[]
+
+  const postAnalysisFiltered = postAnalysisToUpdate.filter((item) => item !== null)
+
+  if (postAnalysisFiltered.length > 0) {
+    for (const post of postAnalysisFiltered) {
+      await prisma.post_analysis.update({
+        where: { instagram_post_id: post.instagram_post_id },
+        data: post,
+      })
+    }
+  }
+
+  return postAnalysisFiltered
 }

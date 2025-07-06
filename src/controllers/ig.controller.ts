@@ -3,6 +3,7 @@ import {
   removeAllDuplicatedPosts,
   scrapJustPosts,
   scrapPostComments,
+  updatePostsAnalysisService,
 } from '@/services/instagram/post.service'
 import { scrapCommentsByDate, syncPostCommentCounts } from '@/services/instagram/comment.service'
 import type { Response, Request } from 'express'
@@ -52,7 +53,8 @@ export const createPostCommentsController = async (req: Request, res: Response):
  */
 export const syncPostCommentsController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const data = await syncPostCommentCounts()
+    const { categoryId } = req.query
+    const data = await syncPostCommentCounts(Number(categoryId))
     res.status(200).json(data)
   } catch (error: unknown) {
     console.error(error)
@@ -109,6 +111,22 @@ export const removeAllDuplicatedPostsController = async (
 ): Promise<void> => {
   try {
     const data = await removeAllDuplicatedPosts()
+    res.status(200).json(data)
+  } catch (error: unknown) {
+    console.error(error)
+    res.status(500).json({ message: (error as Error).message })
+  }
+}
+
+/**
+ * Updates the analysis of posts.
+ * @param {Request} req - The request object
+ * @param {Response} res - The response object
+ * @returns {Promise<void>} A summary of the operation
+ */
+export const updatePostsAnalysisController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const data = await updatePostsAnalysisService()
     res.status(200).json(data)
   } catch (error: unknown) {
     console.error(error)

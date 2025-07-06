@@ -4,6 +4,7 @@ import {
   analyzePostsWithCommentsAnalyzed,
   addCommentsToPostAnalysis,
   removeDuplicatedPosts,
+  updatePostsAnalysis,
 } from '@/repositories/instagram/post.repo'
 
 /**
@@ -68,13 +69,6 @@ export const createPostsWithoutAnalysis = async (
   categoryId: number
 ): Promise<{ posts: number; status: string }> => {
   const postsToAnalyze = await analyzePostsWithCommentsAnalyzed(categoryId)
-  console.log(postsToAnalyze.length)
-  if (postsToAnalyze.length <= 0) {
-    return {
-      posts: 0,
-      status: 'success',
-    }
-  }
   return {
     posts: postsToAnalyze.length,
     status: 'success',
@@ -92,6 +86,14 @@ export const removeAllDuplicatedPosts = async (): Promise<{
   const postsRemoved = await removeDuplicatedPosts()
   return {
     posts_removed: postsRemoved,
+    status: 'success',
+  }
+}
+
+export const updatePostsAnalysisService = async (): Promise<{ result: number; status: string }> => {
+  const result = await updatePostsAnalysis()
+  return {
+    result: result,
     status: 'success',
   }
 }
