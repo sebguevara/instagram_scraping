@@ -11,6 +11,7 @@ export interface IGPostEntity {
   type: 'POST' | 'REEL'
   link: string
   artificialLikes: boolean
+  numberOfViews: number
   accountId: number
 }
 

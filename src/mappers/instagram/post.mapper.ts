@@ -23,5 +23,6 @@ export const mapApifyPostToPost = async (
     link: item.url,
     accountId: accountId,
     artificialLikes: item.likesCount === -1,
+    numberOfViews: item.videoPlayCount,
   } as IGPostEntity
 }

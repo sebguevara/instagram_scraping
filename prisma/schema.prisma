@@ -30,6 +30,7 @@ model account_entity {
   @@index([enabled, account_category_id, id, accountURL], map: "idx_account_entity_complex")
   @@index([enabled, account_category_id], map: "idx_account_entity_enabled_category")
   @@index([id], map: "idx_account_entity_id")
+  @@index([account_category_id, enabled], map: "idx_account_entity_category_enabled")
 }
 
 model avoid_actions {
@@ -85,6 +86,7 @@ model history_entity {
 }
 
 /// This model contains an index with non-default null sort order and requires additional setup for migrations. Visit https://pris.ly/d/default-index-null-ordering for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model instagram_post {
   id                     Int                      @id(map: "PK_a0946a290d49ebb27c7684b956d") @default(autoincrement())
   media                  String
@@ -95,8 +97,9 @@ model instagram_post {
   postDate               DateTime                 @default(now()) @db.Timestamptz(6)
   type                   instagram_post_type_enum @default(POST)
   accountId              Int?
-  link                   String?                  @unique
+  link                   String?                  @unique(map: "unique_instagram_post_link")
   artificialLikes        Boolean?                 @default(false)
+  numberOfViews          Int?
   comment_analysis       comment_analysis[]
   comment_entity         comment_entity[]
   instagram_user_account instagram_user_account?  @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_aa9e241c18cc32024858f02cfb6")
@@ -110,9 +113,16 @@ model instagram_post {
   @@index([postDate], map: "idx_instagram_post_post_date")
   @@index([type, postDate(sort: Desc)], map: "idx_instagram_post_type_date")
   @@index([accountId, postDate, numberOfLikes, numberOfComments], map: "idx_instagram_post_with_analysis")
+  @@index([accountId, postDate(sort: Desc)], map: "idx_instagram_post_account_group")
+  @@index([numberOfComments(sort: Desc)], map: "idx_instagram_post_comments")
+  @@index([postDate(sort: Desc), accountId, id, numberOfLikes, numberOfComments], map: "idx_instagram_post_date_account_analysis")
+  @@index([numberOfLikes(sort: Desc)], map: "idx_instagram_post_likes")
+  @@index([numberOfViews], map: "idx_instagram_post_number_of_views")
+  @@index([type], map: "idx_instagram_post_type")
 }
 
 /// This model contains an index with non-default null sort order and requires additional setup for migrations. Visit https://pris.ly/d/default-index-null-ordering for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model instagram_user_account {
   id                Int              @id(map: "PK_02fa9f168d5aeedbb1fee8f8aea") @default(autoincrement())
   username          String           @db.VarChar
@@ -155,6 +165,7 @@ model overall_account_analysis {
   @@index([account_entity_id], map: "idx_overall_account_analysis_account_id")
 }
 
+/// This model contains an index with non-default null sort order and requires additional setup for migrations. Visit https://pris.ly/d/default-index-null-ordering for more info.
 model post_analysis {
   id                        Int                  @id @default(autoincrement())
   post_topic_id             Int?
@@ -176,8 +187,11 @@ model post_analysis {
   recommendations           recommendations[]
 
   @@index([instagram_post_id], map: "idx_post_analysis_instagram_post_id")
+  @@index([post_engagement(sort: Desc)], map: "idx_post_analysis_engagement")
+  @@index([post_topic_id], map: "idx_post_analysis_topic")
 }
 
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model post_topic {
   id                     Int                      @id @default(autoincrement())
   emoji                  String
