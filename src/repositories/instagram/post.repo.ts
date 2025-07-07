@@ -23,10 +23,6 @@ const getEnabledAccounts = async (categoryId: number): Promise<AccountEntityWith
     include: { instagram_user_account: true },
   })
 
-  accounts.forEach((account) => {
-    console.log('account', account.instagram_user_account?.id)
-  })
-
   return accounts as unknown as AccountEntityWithRelations[]
 }
 
@@ -388,8 +384,15 @@ export const analyzePostsWithCommentsAnalyzed = async (
 
   await createPostAnalysis(postsAnalysis)
 
-  await addCommentsToPostAnalysis(postsToAnalyze, categoryId)
-  return postsToAnalyze
+  const postsFiltered = postsToAnalyze.filter((post) => {
+    const postAnalysis = postsAnalysis.find(
+      (item) => item.instagram_post_id === post.id && item.id !== 21
+    )
+    return !postAnalysis
+  })
+
+  await addCommentsToPostAnalysis(postsFiltered, categoryId)
+  return postsFiltered
 }
 
 /**
