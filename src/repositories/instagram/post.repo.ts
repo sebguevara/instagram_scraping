@@ -144,6 +144,8 @@ export const getPosts = async (days: number, categoryId: number): Promise<IGPost
       ])
     ) as Map<string | null, number>
 
+    if (accountsMap.size <= 0) return []
+
     const { defaultDatasetId } = await getPostsFromApify(Array.from(accountsMap.keys()), days)
     const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
     const data = items as unknown as ApifyIGPostResponse[]
