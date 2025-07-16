@@ -19,7 +19,7 @@ import pLimit from 'p-limit'
  */
 const getEnabledAccounts = async (categoryId: number): Promise<AccountEntityWithRelations[]> => {
   const accounts = await prisma.account_entity.findMany({
-    where: { enabled: 'TRUE', account_category_id: categoryId },
+    where: { enabled: 'TRUE', account_type_id: 1, account_category_id: categoryId },
     include: { instagram_user_account: true },
   })
 

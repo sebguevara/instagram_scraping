@@ -1,3 +1,6 @@
 export * from './instagram/comment.mapper'
 export * from './instagram/post.mapper'
 export * from './instagram/profile.mapper'
+export * from './facebook/profile.mapper'
+export * from './facebook/post.mapper'
+export * from './facebook/comment.mapper'

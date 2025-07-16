@@ -265,14 +265,14 @@ model facebook_account_history {
 
 model facebook_comment_analysis {
   id                      Int                      @id @default(autoincrement())
-  facebookCommentID       Int?                     @unique
   topic                   String?
   emotion                 String?
   request                 String?
   analyzedAt              DateTime?                @default(dbgenerated("('now'::text)::date")) @db.Date
   updatedAt               DateTime?                @default(dbgenerated("('now'::text)::date")) @db.Date
   postID                  Int?
-  facebook_comment_entity facebook_comment_entity? @relation(fields: [facebookCommentID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  commentID               Int?                     @unique
+  facebook_comment_entity facebook_comment_entity? @relation(fields: [commentID], references: [id], onDelete: NoAction, onUpdate: NoAction)
   facebook_post           facebook_post?           @relation(fields: [postID], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
@@ -294,7 +294,7 @@ model facebook_comment_entity {
 
 model facebook_post_analysis {
   id                      Int            @id @default(autoincrement())
-  postTopicId             Int?
+  post_topic_id           Int?
   commentsAmmount         Int?
   ammountNegativeComments Int?
   ammountPositiveComments Int?
@@ -303,10 +303,10 @@ model facebook_post_analysis {
   postEngagement          Float?
   createdAt               DateTime?      @default(now()) @db.Timestamp(6)
   updatedAt               DateTime?      @default(now()) @db.Timestamp(6)
-  facebookPostID          Int?           @unique
   tags                    String?
-  facebook_post           facebook_post? @relation(fields: [facebookPostID], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  post_topic              post_topic?    @relation(fields: [postTopicId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  postID                  Int?           @unique
+  facebook_post           facebook_post? @relation(fields: [postID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  post_topic              post_topic?    @relation(fields: [post_topic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model facebook_user_account {

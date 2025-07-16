@@ -18,5 +18,5 @@ export interface FBCommentAnalysisEntity {
   analyzedAt?: Date
   postID?: number
   updatedAt?: Date
-  facebookCommentID: number
+  commentID: number
 }

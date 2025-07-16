@@ -1,13 +1,12 @@
 import { apifyClient, prisma } from '@/config'
-import { APIFY_IG_ACTORS } from '@/const'
 import type {
-  IGAccountEntity,
-  ApifyIGProfileResponse,
-  IGHistoryEntity,
-  IGInstagramUserAccountEntity,
+  AccountEntity,
+  AccountEntityWithRelations,
+  ApifyFBProfileResponse,
 } from '@/interfaces'
-import { mapApifyProfileToUser, mapUserToPrisma } from '@/mappers'
-import { getUsername } from '@/utils'
+import type { FBHistoryEntity, FBUserAccountEntity } from '@/interfaces/schemas/facebook/profile'
+import { mapApifyFBProfileToUser, mapFBUserToPrisma } from '@/mappers'
+import { APIFY_FB_ACTORS } from '@/const'
 
 /**
  * Updates the accounts in the database.
@@ -16,27 +15,28 @@ import { getUsername } from '@/utils'
  * @returns {Promise<InstagramUserAccountEntity[]>} The updated accounts
  */
 export const updateAccounts = async (
-  historyEntities: IGHistoryEntity[],
-  dataApify: ApifyIGProfileResponse[]
-): Promise<IGInstagramUserAccountEntity[]> => {
+  historyEntities: FBHistoryEntity[],
+  dataApify: ApifyFBProfileResponse[]
+): Promise<FBUserAccountEntity[]> => {
   const accounts = (await prisma.account_entity.findMany({
     where: { enabled: 'TRUE', account_type_id: 2 },
-  })) as unknown as IGAccountEntity[]
+    include: { facebook_user_account: true },
+  })) as unknown as AccountEntityWithRelations[]
 
   const accountUpdates = accounts.map((account) => {
-    const history = historyEntities.find((history) => history.accountId === account.id)
-    const profileData = dataApify.find((item) => item.username === getUsername(account.accountURL))
+    const history = historyEntities.find((history) => history.accountEntityID === account.id)
+    const profileData = dataApify.find((item) => item.facebookUrl === account.accountURL)
+    if (!history || !profileData) return null
     return {
-      where: { id: account.id },
-      data: mapUserToPrisma(history!, profileData!),
+      where: { id: account.facebook_user_account?.id },
+      data: mapFBUserToPrisma(history, profileData),
     }
   })
+  const filteredAccountUpdates = accountUpdates.filter((update) => update !== null)
 
   const updatedAccounts = (await Promise.all(
-    accountUpdates.map((update) => prisma.instagram_user_account.update(update))
-  )) as unknown as IGInstagramUserAccountEntity[]
-
-  if (updatedAccounts.length <= 0) throw new Error('No accounts updated')
+    filteredAccountUpdates.map((update) => prisma.facebook_user_account.update(update))
+  )) as unknown as FBUserAccountEntity[]
 
   return updatedAccounts
 }
@@ -46,29 +46,27 @@ export const updateAccounts = async (
  * @returns {Promise<{ historyEntities: HistoryEntity[]; dataApify: ApifyProfileResponse[] }>} The history profile
  */
 export const createHistoryProfiles = async (): Promise<{
-  historyEntities: IGHistoryEntity[]
-  dataApify: ApifyIGProfileResponse[]
+  historyEntities: FBHistoryEntity[]
+  dataApify: ApifyFBProfileResponse[]
 }> => {
   const accounts = (await prisma.account_entity.findMany({
-    where: { enabled: 'TRUE', account_type_id: 2 },
-  })) as unknown as IGAccountEntity[]
+    where: { enabled: 'TRUE', account_type_id: 2, account_category_id: 1 },
+  })) as unknown as AccountEntity[]
 
-  const accountMap = new Map(
-    accounts.map((account) => [getUsername(account.accountURL), account.id])
-  )
-  const { defaultDatasetId } = await apifyClient.actor(APIFY_IG_ACTORS.PROFILE_ACTOR).call({
-    usernames: Array.from(accountMap.keys()),
+  const accountMap = new Map(accounts.map((account) => [account.accountURL, account.id]))
+  const { defaultDatasetId } = await apifyClient.actor(APIFY_FB_ACTORS.PROFILE_ACTOR).call({
+    startUrls: accounts.map((account) => ({ url: account.accountURL, method: 'GET' })),
   })
 
   const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
-  const data = items as unknown as ApifyIGProfileResponse[]
+  const data = items as unknown as ApifyFBProfileResponse[]
 
   if (data.length <= 0) throw new Error('No data found')
   const historyEntities = data.map((item) =>
-    mapApifyProfileToUser(item, accountMap.get(item.username)!)
+    mapApifyFBProfileToUser(item, accountMap.get(item.facebookUrl)!)
   )
   for (const historyEntity of historyEntities) {
-    await prisma.history_entity.create({ data: historyEntity })
+    await prisma.facebook_account_history.create({ data: historyEntity })
   }
 
   return { historyEntities, dataApify: data }

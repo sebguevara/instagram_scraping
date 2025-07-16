@@ -21,7 +21,7 @@ export const mapApifyFBPostToPost = async (
     type: item.isVideo ? 'REEL' : 'POST',
     link: item.url,
     facebookPostID: item.postId,
-    postdate: new Date(item.timestamp),
-    accountId: accountId,
+    postdate: new Date(item.timestamp * 1000),
+    accountid: accountId,
   } as FBPostEntity
 }

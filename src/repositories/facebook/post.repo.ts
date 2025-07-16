@@ -1,5 +1,6 @@
 import { apifyClient, prisma } from '@/config'
-import { getPostEngagement, getPostTopic } from '@/utils'
+import { getPostTopic } from '@/utils'
+import { getPostEngagement } from '@/utils/facebook/get_post_engagement'
 import { createComments } from './comment.repo'
 import { APIFY_FB_ACTORS, FB_POST_ACTOR_PARAMS } from '@/const'
 import type { AccountEntityWithRelations, ApifyFBPostResponse, PostTopic } from '@/interfaces'
@@ -14,7 +15,7 @@ import type { FBCommentAnalysisEntity } from '@/interfaces/schemas/facebook/comm
  */
 const getEnabledAccounts = async (categoryId: number): Promise<AccountEntityWithRelations[]> => {
   const accounts = await prisma.account_entity.findMany({
-    where: { enabled: 'TRUE', account_category_id: categoryId },
+    where: { enabled: 'TRUE', account_type_id: 2, account_category_id: categoryId },
     include: { facebook_user_account: true },
   })
 
@@ -189,7 +190,7 @@ export const analyzePosts = async (
     const limit = pLimit(20)
     const postsAnalysis = (await Promise.all(
       posts.map(async (post) => {
-        const account = accounts.find((item) => item.facebook_user_account?.id === post.accountId)
+        const account = accounts.find((item) => item.facebook_user_account?.id === post.accountid)
         if (!account) return null
         const filterTopics = topics.filter(
           (topic) =>
@@ -200,8 +201,8 @@ export const analyzePosts = async (
         const postTopic = await limit(async () => await getPostTopic(post.title, filterTopics))
         if (!postTopic) return null
         return {
-          facebookPostID: post.id,
-          postTopicId: Number(postTopic.id),
+          postID: post.id,
+          post_topic_id: Number(postTopic.id),
           tags: postTopic.tags.join(','),
         }
       })
@@ -209,31 +210,31 @@ export const analyzePosts = async (
 
     const postsAnalysisFiltered = postsAnalysis.filter((item) => item !== null)
     const postAnalysisInDb = await prisma.facebook_post_analysis.findMany({
-      where: { facebookPostID: { in: posts.map((item) => item.id!) } },
+      where: { postID: { in: posts.map((item) => item.id!) } },
     })
 
     const postAnalysisToUpdate = postsAnalysisFiltered.filter((item) =>
-      postAnalysisInDb.some((post) => post.facebookPostID === item.facebookPostID)
+      postAnalysisInDb.some((post) => post.postID === item.postID)
     )
 
     for (const post of postAnalysisToUpdate) {
       await prisma.facebook_post_analysis.update({
-        where: { facebookPostID: post.facebookPostID! },
+        where: { postID: post.postID! },
         data: {
           tags: post.tags,
-          postTopicId: post.postTopicId,
+          post_topic_id: post.post_topic_id,
         },
       })
     }
 
     const postAnalysisToCreate = postsAnalysisFiltered.filter(
-      (item) => !postAnalysisInDb.some((post) => post.facebookPostID === item.facebookPostID)
+      (item) => !postAnalysisInDb.some((post) => post.postID === item.postID)
     )
     await createPostAnalysis(postAnalysisToCreate)
 
     const postsAnalyzed = (await prisma.facebook_post_analysis.findMany({
       where: {
-        facebookPostID: { in: posts.map((item) => item.id!) },
+        postID: { in: posts.map((item) => item.id!) },
         commentsAmmount: { equals: null },
       },
     })) as unknown as FBPostAnalysisEntity[]
@@ -261,24 +262,23 @@ export const addCommentsToPostAnalysis = async (
   const accounts = await getEnabledAccounts(categoryId)
   const commentsAnalysis = await Promise.all(posts.map((post) => createComments(post)))
 
-  // get postsanalyze by posts
   const postsAnalyzed = await prisma.facebook_post_analysis.findMany({
-    where: { facebookPostID: { in: posts.map((item) => item.id!) } },
+    where: { postID: { in: posts.map((item) => item.id!) } },
   })
-  const postsAnalyzedMap = new Map(postsAnalyzed.map((item) => [item.facebookPostID, item]))
+  const postsAnalyzedMap = new Map(postsAnalyzed.map((item) => [item.postID, item]))
 
   const postsWithEngagement = posts.map((post) => {
-    const account = accounts.find((item) => item.facebook_user_account!.id === post.accountId)
+    const account = accounts.find((item) => item.facebook_user_account!.id === post.accountid)
     if (!account) return null
     const post_engagement = getPostEngagement(post, account.facebook_user_account!.followers)
     return {
       post_engagement,
-      facebookPostID: post.id!,
+      postID: post.id!,
     }
-  }) as unknown as { post_engagement: number; facebookPostID: number }[]
+  }) as unknown as { post_engagement: number; postID: number }[]
 
   const postAnalysisToUpdate = posts.map((post) => {
-    const postWithEngagement = postsWithEngagement.find((item) => item.facebookPostID === post.id)
+    const postWithEngagement = postsWithEngagement.find((item) => item.postID === post.id)
     if (!postWithEngagement) return null
 
     const commentsAmount = commentsAnalysis.filter((item) => item?.postID === post.id).length
@@ -297,17 +297,14 @@ export const addCommentsToPostAnalysis = async (
     const neutralComments = commentsAmount - (negativeComments ?? 0) - (positiveComments ?? 0)
 
     return {
-      postTopicId: postAnalyzed.postTopicId,
-      facebookPostID: post.id,
-      post_date: post.postdate,
+      postID: post.id,
+      post_topic_id: postAnalyzed.post_topic_id,
       tags: postAnalyzed.tags,
-      post_engagement: postWithEngagement.post_engagement,
-      comments_amount: commentsAmount,
-      ammount_negative_comments: negativeComments,
-      ammount_positive_comments: positiveComments,
-      ammount_neutral_comments: neutralComments,
-      createdat: new Date(),
-      updatedat: new Date(),
+      postEngagement: postWithEngagement.post_engagement,
+      commentsAmmount: commentsAmount,
+      ammountNegativeComments: negativeComments,
+      ammountPositiveComments: positiveComments,
+      ammountNeutralComments: neutralComments,
     }
   }) as unknown as FBPostAnalysisEntity[]
 
@@ -316,7 +313,7 @@ export const addCommentsToPostAnalysis = async (
   if (postAnalysisFiltered.length > 0) {
     for (const post of postAnalysisFiltered) {
       await prisma.facebook_post_analysis.update({
-        where: { facebookPostID: post.facebookPostID },
+        where: { postID: post.postID },
         data: post,
       })
     }
@@ -356,7 +353,7 @@ export const analyzePostsWithCommentsAnalyzed = async (
 
   const postsAnalysis: FBPostAnalysisEntity[] = []
   for (const post of postsToAnalyze) {
-    const account = accounts.find((item) => item.id === post.accountId)
+    const account = accounts.find((item) => item.id === post.accountid)
     if (!account) return []
     const filterTopics = topics.filter(
       (topic) =>
@@ -367,8 +364,8 @@ export const analyzePostsWithCommentsAnalyzed = async (
     const postTopic = await getPostTopic(post.title, filterTopics)
     if (!postTopic) return []
     postsAnalysis.push({
-      postTopicId: Number(postTopic.id),
-      facebookPostID: post.id!,
+      post_topic_id: Number(postTopic.id),
+      postID: post.id!,
       tags: postTopic.tags.join(','),
     })
   }
@@ -376,9 +373,7 @@ export const analyzePostsWithCommentsAnalyzed = async (
   await createPostAnalysis(postsAnalysis)
 
   const postsFiltered = postsToAnalyze.filter((post) => {
-    const postAnalysis = postsAnalysis.find(
-      (item) => item.facebookPostID === post.id && item.id !== 21
-    )
+    const postAnalysis = postsAnalysis.find((item) => item.postID === post.id && item.id !== 21)
     return !postAnalysis
   })
 
@@ -406,7 +401,7 @@ export const removeDuplicatedPosts = async (): Promise<number> => {
   })
   for (const comment of comments) {
     const commentAnalysis = await prisma.facebook_comment_analysis.findFirst({
-      where: { facebookCommentID: comment.id },
+      where: { commentID: comment.id },
     })
     if (commentAnalysis) {
       await prisma.facebook_comment_analysis.delete({ where: { id: commentAnalysis.id } })
@@ -417,7 +412,7 @@ export const removeDuplicatedPosts = async (): Promise<number> => {
 
   // delete posts analysis
   const postsAnalysis = await prisma.facebook_post_analysis.findMany({
-    where: { facebookPostID: { in: postsWithDuplicatedLink.map((item) => item.id!) } },
+    where: { postID: { in: postsWithDuplicatedLink.map((item) => item.id!) } },
   })
   for (const postAnalysis of postsAnalysis) {
     await prisma.facebook_post_analysis.delete({ where: { id: postAnalysis.id } })
@@ -444,7 +439,7 @@ export const updatePostsAnalysis = async (): Promise<number> => {
     // then get all posts where id is in the postsAnalysis
     const posts = (await prisma.facebook_post.findMany({
       where: {
-        id: { in: postsAnalysis.map((item) => item.facebookPostID) },
+        id: { in: postsAnalysis.map((item) => item.postID) },
       },
     })) as unknown as FBPostEntity[]
 
@@ -465,26 +460,29 @@ export const addCommentsAndUpdatePostAnalysis = async (
   const accounts = await getEnabledAccounts(1)
 
   const postsWithEngagement = posts.map((post) => {
-    const account = accounts.find((item) => item.facebook_user_account?.id === post.accountId)
+    const account = accounts.find((item) => item.facebook_user_account?.id === post.accountid)
 
     if (!account) return null
+    if (account.facebook_user_account!.followers <= 0)
+      return {
+        post_engagement: -1,
+        postID: post.id,
+      }
 
     const post_engagement = getPostEngagement(post, account.facebook_user_account!.followers)
     return {
       post_engagement,
-      facebookPostID: post.id,
+      postID: post.id,
     }
-  }) as unknown as { post_engagement: number; facebookPostID: number }[]
+  }) as unknown as { post_engagement: number; postID: number }[]
 
   const postsWithEngagementFiltered = postsWithEngagement.filter((item) => item !== null)
   const commentsAnalysis = (await prisma.facebook_comment_analysis.findMany({
-    where: { postID: { in: postsWithEngagementFiltered.map((item) => item.facebookPostID) } },
+    where: { postID: { in: postsWithEngagementFiltered.map((item) => item.postID) } },
   })) as unknown as FBCommentAnalysisEntity[]
 
   const postAnalysisToUpdate = posts.map((post) => {
-    const postWithEngagement = postsWithEngagementFiltered.find(
-      (item) => item.facebookPostID === post.id
-    )
+    const postWithEngagement = postsWithEngagementFiltered.find((item) => item.postID === post.id)
     if (!postWithEngagement) return null
 
     const commentsAmount = commentsAnalysis.filter((item) => item.postID === post.id).length
@@ -500,13 +498,12 @@ export const addCommentsAndUpdatePostAnalysis = async (
     const neutralComments = commentsAmount - (negativeComments ?? 0) - (positiveComments ?? 0)
 
     return {
-      facebookPostID: postWithEngagement.facebookPostID,
-      post_engagement: postWithEngagement.post_engagement,
-      comments_amount: commentsAmount,
-      ammount_negative_comments: negativeComments,
-      ammount_positive_comments: positiveComments,
-      ammount_neutral_comments: neutralComments,
-      createdat: new Date(),
+      postID: postWithEngagement.postID,
+      postEngagement: postWithEngagement.post_engagement,
+      commentsAmmount: commentsAmount,
+      ammountNegativeComments: negativeComments,
+      ammountPositiveComments: positiveComments,
+      ammountNeutralComments: neutralComments,
     }
   }) as unknown as FBPostAnalysisEntity[]
 
@@ -515,7 +512,7 @@ export const addCommentsAndUpdatePostAnalysis = async (
   if (postAnalysisFiltered.length > 0) {
     for (const post of postAnalysisFiltered) {
       await prisma.facebook_post_analysis.update({
-        where: { facebookPostID: post.facebookPostID },
+        where: { postID: post.postID },
         data: post,
       })
     }

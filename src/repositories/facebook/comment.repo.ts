@@ -46,7 +46,10 @@ export const createComments = async (
         (item) => item.facebookCommentID === comment.facebookCommentID
       )
       if (!commentData) continue
-      await prisma.facebook_comment_entity.update({ where: { id: comment.id }, data: commentData })
+      await prisma.facebook_comment_entity.update({
+        where: { id: comment.id },
+        data: commentData,
+      })
     }
 
     const commentsToCreate = commentsMapped.filter(
@@ -54,9 +57,12 @@ export const createComments = async (
         !commentsInDb.some((comment) => comment.facebookCommentID === item.facebookCommentID)
     )
 
-    if (commentsToCreate.length > 0) {
-      for (const comment of commentsToCreate) {
-        console.log('comment', comment)
+    const commentsToCreateFiltered = commentsToCreate.filter(
+      (item) => item.commentContent && item.commentOwnerUsername
+    )
+
+    if (commentsToCreateFiltered.length > 0) {
+      for (const comment of commentsToCreateFiltered) {
         await prisma.facebook_comment_entity.create({ data: comment })
       }
     }
@@ -94,7 +100,7 @@ export const createCommentAnalysis = async (
         limit(async () => {
           const commentAnalysis = await getAnalyzedComment(comment.commentContent)
           return {
-            facebookCommentID: comment.id!,
+            commentID: comment.id!,
             postID: comment.postID,
             emotion: commentAnalysis.emotion,
             topic: commentAnalysis.topic,
@@ -108,20 +114,18 @@ export const createCommentAnalysis = async (
 
     const commentAnalysisInDb = await prisma.facebook_comment_analysis.findMany({
       where: {
-        facebookCommentID: {
-          in: commentAnalysis.map((item) => item.facebookCommentID),
+        commentID: {
+          in: commentAnalysis.map((item) => item.commentID),
         },
       },
     })
 
     const commentAnalysisToUpdate = commentAnalysisInDb.filter((item) =>
-      commentAnalysis.some((c) => c.facebookCommentID === item.facebookCommentID)
+      commentAnalysis.some((c) => c.id === item.id)
     )
 
     for (const existing of commentAnalysisToUpdate) {
-      const updateData = commentAnalysis.find(
-        (c) => c.facebookCommentID === existing.facebookCommentID
-      )
+      const updateData = commentAnalysis.find((c) => c.commentID === existing.commentID)
       if (!updateData) continue
 
       await prisma.comment_analysis.update({
@@ -131,16 +135,16 @@ export const createCommentAnalysis = async (
     }
 
     const commentAnalysisToCreate = commentAnalysis.filter(
-      (item) => !commentAnalysisInDb.some((c) => c.facebookCommentID === item.facebookCommentID)
+      (item) => !commentAnalysisInDb.some((c) => c.commentID === item.commentID)
     )
 
     for (const comment of commentAnalysisToCreate) {
       const commentEntity = await prisma.facebook_comment_entity.findUnique({
-        where: { id: comment.facebookCommentID },
+        where: { id: comment.commentID },
       })
 
       if (!commentEntity) {
-        const original = comments.find((c) => c.id === comment.facebookCommentID)
+        const original = comments.find((c) => c.id === comment.commentID)
         if (original) {
           const entityData = {
             commentContent: original.commentContent,
@@ -149,7 +153,7 @@ export const createCommentAnalysis = async (
             likesOfComment: original.likesOfComment ?? 0,
             scrap_date: original.scrap_date,
             comment_date: original.comment_date,
-            facebookCommentID: original.facebookCommentID,
+            commentID: original.id!,
           }
 
           await prisma.facebook_comment_entity.create({

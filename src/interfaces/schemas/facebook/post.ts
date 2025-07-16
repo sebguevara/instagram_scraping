@@ -10,11 +10,11 @@ export interface FBPostEntity {
   postdate: Date
   type: 'POST' | 'REEL'
   link: string
-  accountId: number
+  accountid: number
 }
 export interface FBPostAnalysisEntity {
   id?: number
-  postTopicId?: number
+  post_topic_id?: number
   commentsAmmount?: number
   ammountNegativeComments?: number
   ammountPositiveComments?: number
@@ -24,5 +24,5 @@ export interface FBPostAnalysisEntity {
   tags?: string
   createdAt?: Date
   updatedAt?: Date
-  facebookPostID: number
+  postID: number
 }
