@@ -36,3 +36,17 @@ export interface AccountCategory {
   description?: string
   createdat?: Date
 }
+
+export interface PostTopicResponse {
+  topic: string
+  tags: string[]
+  id: number
+}
+
+export interface PostTopic {
+  id?: number
+  topic: string
+  description: string
+  emoji: string
+  account_category_id: number
+}

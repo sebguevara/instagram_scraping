@@ -217,20 +217,22 @@ model recommendations {
 }
 
 model facebook_post {
-  id                      Int                       @id @default(autoincrement())
-  media                   String?
-  title                   String?
-  numberoflikes           Int?
-  numberofshares          Int?
-  numberofcomments        Int?
-  scrapdate               DateTime?                 @default(now()) @db.Timestamp(6)
-  postdate                DateTime                  @db.Timestamptz(6)
-  type                    String?
-  accountid               Int?
-  link                    String?
-  facebook_comment_entity facebook_comment_entity[]
-  facebook_user_account   facebook_user_account?    @relation(fields: [accountid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_facebook_post_facebook_user_account")
-  facebook_post_analysis  facebook_post_analysis?
+  id                        Int                         @id @default(autoincrement())
+  media                     String?
+  title                     String?
+  numberoflikes             Int?
+  numberofshares            Int?
+  numberofcomments          Int?
+  scrapdate                 DateTime?                   @default(now()) @db.Timestamp(6)
+  postdate                  DateTime                    @db.Timestamptz(6)
+  type                      String?
+  accountid                 Int?
+  link                      String?
+  facebookPostID            String?                     @unique
+  facebook_comment_analysis facebook_comment_analysis[]
+  facebook_comment_entity   facebook_comment_entity[]
+  facebook_user_account     facebook_user_account?      @relation(fields: [accountid], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_facebook_post_facebook_user_account")
+  facebook_post_analysis    facebook_post_analysis?
 }
 
 model account_category {
@@ -269,7 +271,9 @@ model facebook_comment_analysis {
   request                 String?
   analyzedAt              DateTime?                @default(dbgenerated("('now'::text)::date")) @db.Date
   updatedAt               DateTime?                @default(dbgenerated("('now'::text)::date")) @db.Date
+  postID                  Int?
   facebook_comment_entity facebook_comment_entity? @relation(fields: [facebookCommentID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  facebook_post           facebook_post?           @relation(fields: [postID], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model facebook_comment_entity {
@@ -281,6 +285,7 @@ model facebook_comment_entity {
   likesOfComment                Int?
   scrap_date                    DateTime                   @default(dbgenerated("('now'::text)::date")) @db.Date
   comment_date                  DateTime                   @default(dbgenerated("('now'::text)::date")) @db.Date
+  facebookCommentID             String?                    @unique
   facebook_comment_analysis     facebook_comment_analysis?
   facebook_post                 facebook_post?             @relation(fields: [postID], references: [id], onDelete: NoAction, onUpdate: NoAction)
   facebook_comment_entity       facebook_comment_entity?   @relation("facebook_comment_entityTofacebook_comment_entity", fields: [primaryCommentID], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -289,7 +294,6 @@ model facebook_comment_entity {
 
 model facebook_post_analysis {
   id                      Int            @id @default(autoincrement())
-  instagramPostID         Int?           @unique
   postTopicId             Int?
   commentsAmmount         Int?
   ammountNegativeComments Int?
@@ -299,7 +303,9 @@ model facebook_post_analysis {
   postEngagement          Float?
   createdAt               DateTime?      @default(now()) @db.Timestamp(6)
   updatedAt               DateTime?      @default(now()) @db.Timestamp(6)
-  facebook_post           facebook_post? @relation(fields: [instagramPostID], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  facebookPostID          Int?           @unique
+  tags                    String?
+  facebook_post           facebook_post? @relation(fields: [facebookPostID], references: [id], onDelete: NoAction, onUpdate: NoAction)
   post_topic              post_topic?    @relation(fields: [postTopicId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 

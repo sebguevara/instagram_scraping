@@ -7,6 +7,7 @@ export interface FBCommentEntity {
   comment_date: Date
   postID: number
   primaryCommentID?: number
+  facebookCommentID?: string
 }
 
 export interface FBCommentAnalysisEntity {
@@ -15,6 +16,7 @@ export interface FBCommentAnalysisEntity {
   emotion?: string
   request?: string
   analyzedAt?: Date
+  postID?: number
   updatedAt?: Date
   facebookCommentID: number
 }

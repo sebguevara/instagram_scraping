@@ -1,4 +1,5 @@
 import type { IGPostEntity } from '@/interfaces'
+import type { FBPostEntity } from '@/interfaces/schemas/facebook/post'
 
 /**
  * Calculates the engagement of a post based on the number of likes and comments.
@@ -6,6 +7,9 @@ import type { IGPostEntity } from '@/interfaces'
  * @param {number} totalFollowers - The total number of followers of the account
  * @returns {number} The engagement of the post
  */
-export const getPostEngagement = (post: IGPostEntity, totalFollowers: number): number => {
+export const getPostEngagement = (
+  post: IGPostEntity | FBPostEntity,
+  totalFollowers: number
+): number => {
   return ((post.numberOfLikes! + post.numberOfComments!) / totalFollowers) * 100
 }

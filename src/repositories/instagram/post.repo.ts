@@ -7,7 +7,7 @@ import type {
   ApifyIGPostResponse,
   IGPostAnalysis,
   IGPostEntity,
-  IGPostTopic,
+  PostTopic,
   AccountEntityWithRelations,
   IGCommentAnalysis,
 } from '@/interfaces'
@@ -19,7 +19,7 @@ import pLimit from 'p-limit'
  */
 const getEnabledAccounts = async (categoryId: number): Promise<AccountEntityWithRelations[]> => {
   const accounts = await prisma.account_entity.findMany({
-    where: { enabled: 'TRUE', account_type_id: 1, account_category_id: categoryId },
+    where: { enabled: 'TRUE', account_category_id: categoryId },
     include: { instagram_user_account: true },
   })
 
@@ -28,10 +28,10 @@ const getEnabledAccounts = async (categoryId: number): Promise<AccountEntityWith
 
 /**
  * Retrieves available topics from the database.
- * @returns {Promise<IGPostTopic[]>} List of available topics
+ * @returns {Promise<PostTopic[]>} List of available topics
  */
-const getAvailableTopics = async (): Promise<IGPostTopic[]> => {
-  return (await prisma.post_topic.findMany()) as unknown as IGPostTopic[]
+const getAvailableTopics = async (): Promise<PostTopic[]> => {
+  return (await prisma.post_topic.findMany()) as unknown as PostTopic[]
 }
 
 /**
@@ -75,7 +75,6 @@ const createNewPosts = async (postsToCreate: IGPostEntity[]): Promise<void> => {
   const existingLinks = new Set(existingPosts.map((p) => p.link))
 
   const postsToReallyCreate = postsToCreate.filter((post) => !existingLinks.has(post.link))
-  console.log('postsToReallyCreate', postsToReallyCreate.length)
 
   for (const post of postsToReallyCreate) {
     await prisma.instagram_post.create({ data: post })
@@ -145,7 +144,6 @@ export const getPosts = async (days: number, categoryId: number): Promise<IGPost
     ) as Map<string | null, number>
 
     if (accountsMap.size <= 0) return []
-
     const { defaultDatasetId } = await getPostsFromApify(Array.from(accountsMap.keys()), days)
     const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
     const data = items as unknown as ApifyIGPostResponse[]
@@ -416,8 +414,6 @@ export const removeDuplicatedPosts = async (): Promise<number> => {
     where: { postId: { in: postsWithDuplicatedLink.map((item) => item.id) } },
   })
   for (const comment of comments) {
-    console.log('comment', comment.id)
-
     const commentAnalysis = await prisma.comment_analysis.findFirst({
       where: { comment_entity_id: comment.id },
     })
@@ -461,11 +457,7 @@ export const updatePostsAnalysis = async (): Promise<number> => {
       },
     })) as unknown as IGPostEntity[]
 
-    console.log('postsAnalysis', postsAnalysis.length)
-    console.log('posts', posts.length)
-
     const postsUpdated = await addCommentsAndUpdatePostAnalysis(posts)
-    console.log('postsUpdated', postsUpdated.length)
 
     return postsUpdated.length
   } catch (error) {
@@ -501,8 +493,6 @@ export const addCommentsAndUpdatePostAnalysis = async (
   const postAnalysisToUpdate = posts.map((post) => {
     const postWithEngagement = postsWithEngagementFiltered.find((item) => item.post_id === post.id)
     if (!postWithEngagement) return null
-
-    console.log('postWithEngagement', postWithEngagement.post_id)
 
     const commentsAmount = commentsAnalysis.filter((item) => item.post_id === post.id).length
 

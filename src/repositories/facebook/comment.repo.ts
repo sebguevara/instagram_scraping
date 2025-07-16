@@ -1,14 +1,14 @@
 import { apifyClient, prisma } from '@/config'
-import { APIFY_IG_ACTORS, COMMENT_IG_ACTOR_PARAMS } from '@/const'
-import { getAnalyzedComment, getPostByUrl } from '@/utils'
-import { mapApifyCommentToComment } from '@/mappers'
-import type {
-  ApifyIGCommentResponse,
-  IGCommentAnalysisEntity,
-  IGCommentEntity,
-  IGPostEntity,
-} from '@/interfaces'
+import { APIFY_FB_ACTORS, COMMENT_FB_ACTOR_PARAMS } from '@/const'
+import { getAnalyzedComment } from '@/utils'
+import type { ApifyFBCommentResponse } from '@/interfaces'
 import pLimit from 'p-limit'
+import type { FBPostEntity } from '@/interfaces/schemas/facebook/post'
+import type {
+  FBCommentAnalysisEntity,
+  FBCommentEntity,
+} from '@/interfaces/schemas/facebook/comment'
+import { mapApifyFBCommentToComment } from '@/mappers/facebook/comment.mapper'
 
 /**
  * Creates comments for the given posts by fetching them from Apify,
@@ -18,71 +18,55 @@ import pLimit from 'p-limit'
  * @returns {Promise<CommentAnalysisEntity[]>} List of analyzed comments
  * @throws {Error} If no comment data is found or if an unexpected error occurs
  */
-export const createComments = async (posts: IGPostEntity[]): Promise<IGCommentAnalysisEntity[]> => {
+export const createComments = async (
+  post: FBPostEntity
+): Promise<FBCommentAnalysisEntity | null> => {
   try {
-    // Map Instagram post IDs to database post IDs
-    const igIdPostIdMap = new Map(posts.map((item) => [getPostByUrl(item.link!), item.id]))
-
-    // Call Apify actor to fetch comments for the given posts
-    const { defaultDatasetId } = await apifyClient.actor(APIFY_IG_ACTORS.COMMENT_ACTOR).call({
-      startUrls: posts.map((item) => item.link),
-      ...COMMENT_IG_ACTOR_PARAMS,
+    const { defaultDatasetId } = await apifyClient.actor(APIFY_FB_ACTORS.COMMENT_ACTOR).call({
+      post_id: post.facebookPostID,
+      ...COMMENT_FB_ACTOR_PARAMS,
     })
 
-    // Get items (comments) from the Apify dataset
     const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
-    const data = items as unknown as ApifyIGCommentResponse[]
-    if (data.length <= 0) throw new Error('No data found')
+    const data = items as unknown as ApifyFBCommentResponse[]
+    if (data.length <= 0) return null
 
-    // Filter out duplicate or invalid comments
     const dataFiltered = data.filter(
-      (item) =>
-        !item.noResults &&
-        data.filter(
-          (other) =>
-            item.postId === other.postId &&
-            item.user.username === other.user.username &&
-            item.message === other.message
-        ).length === 1
+      (item) => data.filter((other) => item.comment_id === other.comment_id).length === 1
     )
 
-    // Map Apify data to comment entity format
-    const commentsMapped = dataFiltered.map((item) =>
-      mapApifyCommentToComment(item, igIdPostIdMap.get(item.postId)!)
-    )
+    const commentsMapped = dataFiltered.map((item) => mapApifyFBCommentToComment(item, post.id!))
 
-    // Find already existing comments in the database
-    const commentsInDb = await prisma.comment_entity.findMany({
-      where: { instagramid: { in: commentsMapped.map((item) => item.instagramid!) } },
+    const commentsInDb = await prisma.facebook_comment_entity.findMany({
+      where: { facebookCommentID: { in: commentsMapped.map((item) => item.facebookCommentID!) } },
     })
 
-    // Update existing comments
     for (const comment of commentsInDb) {
-      const commentData = commentsMapped.find((item) => item.instagramid === comment.instagramid)
+      const commentData = commentsMapped.find(
+        (item) => item.facebookCommentID === comment.facebookCommentID
+      )
       if (!commentData) continue
-      await prisma.comment_entity.update({ where: { id: comment.id }, data: commentData })
+      await prisma.facebook_comment_entity.update({ where: { id: comment.id }, data: commentData })
     }
 
-    // Filter comments that do not exist yet to create them
     const commentsToCreate = commentsMapped.filter(
-      (item) => !commentsInDb.some((comment) => comment.instagramid === item.instagramid)
+      (item) =>
+        !commentsInDb.some((comment) => comment.facebookCommentID === item.facebookCommentID)
     )
 
-    // Create new comments in the database
     if (commentsToCreate.length > 0) {
       for (const comment of commentsToCreate) {
-        await prisma.comment_entity.create({ data: comment })
+        console.log('comment', comment)
+        await prisma.facebook_comment_entity.create({ data: comment })
       }
     }
 
-    // Get all stored comments (existing and new)
-    const allComments = (await prisma.comment_entity.findMany({
-      where: { instagramid: { in: commentsMapped.map((item) => item.instagramid!) } },
-    })) as unknown as IGCommentEntity[]
+    const allComments = (await prisma.facebook_comment_entity.findMany({
+      where: { facebookCommentID: { in: commentsMapped.map((item) => item.facebookCommentID!) } },
+    })) as unknown as FBCommentEntity[]
 
-    // Analyze all comments
     const commentAnalysis = await createCommentAnalysis(allComments)
-    return commentAnalysis
+    return commentAnalysis[0]
   } catch (error) {
     console.error('Error in createComments:', error)
     throw new Error(
@@ -100,66 +84,85 @@ export const createComments = async (posts: IGPostEntity[]): Promise<IGCommentAn
  * @throws {Error} If an unexpected error occurs during analysis
  */
 export const createCommentAnalysis = async (
-  comments: IGCommentEntity[]
-): Promise<IGCommentAnalysisEntity[]> => {
+  comments: FBCommentEntity[]
+): Promise<FBCommentAnalysisEntity[]> => {
   try {
-    // Limit concurrency to 10 for analysis requests
-    const limit = pLimit(8)
-    console.log(comments.length)
+    const limit = pLimit(20)
 
-    // Analyze each comment (emotion, topic, request)
     const commentAnalysis = (await Promise.all(
       comments.map((comment) =>
         limit(async () => {
-          const commentAnalysis = await getAnalyzedComment(comment.comment)
+          const commentAnalysis = await getAnalyzedComment(comment.commentContent)
           return {
-            comment_entity_id: comment.id!,
-            post_id: comment.postId,
+            facebookCommentID: comment.id!,
+            postID: comment.postID,
             emotion: commentAnalysis.emotion,
             topic: commentAnalysis.topic,
             request: commentAnalysis.request,
-            analyzedat: new Date(),
-            updatedat: new Date(),
+            analyzedAt: new Date(),
+            updatedAt: new Date(),
           }
         })
       )
-    )) as unknown as IGCommentAnalysisEntity[]
+    )) as FBCommentAnalysisEntity[]
 
-    // Find already existing analysis records in the database
-    const commentAnalysisInDb = await prisma.comment_analysis.findMany({
-      where: { comment_entity_id: { in: commentAnalysis.map((item) => item.comment_entity_id) } },
+    const commentAnalysisInDb = await prisma.facebook_comment_analysis.findMany({
+      where: {
+        facebookCommentID: {
+          in: commentAnalysis.map((item) => item.facebookCommentID),
+        },
+      },
     })
 
-    // Find analysis records to update
-    const commentAnalysisToUpdate = commentAnalysisInDb.filter(
-      (item) =>
-        !commentAnalysis.some((comment) => comment.comment_entity_id === item.comment_entity_id)
+    const commentAnalysisToUpdate = commentAnalysisInDb.filter((item) =>
+      commentAnalysis.some((c) => c.facebookCommentID === item.facebookCommentID)
     )
 
-    // Update existing analysis records
-    if (commentAnalysisToUpdate.length > 0) {
-      for (const comment of commentAnalysisToUpdate) {
-        const commentAnalysisToUpdate = commentAnalysis.find(
-          (item) => item.comment_entity_id === comment.comment_entity_id
-        )
-        if (!commentAnalysisToUpdate) continue
-        await prisma.comment_analysis.update({
-          where: { id: comment.id },
-          data: commentAnalysisToUpdate,
-        })
-      }
+    for (const existing of commentAnalysisToUpdate) {
+      const updateData = commentAnalysis.find(
+        (c) => c.facebookCommentID === existing.facebookCommentID
+      )
+      if (!updateData) continue
+
+      await prisma.comment_analysis.update({
+        where: { id: existing.id },
+        data: updateData,
+      })
     }
 
-    // Filter analysis records that do not exist yet to create them
     const commentAnalysisToCreate = commentAnalysis.filter(
-      (item) =>
-        !commentAnalysisInDb.some((comment) => comment.comment_entity_id === item.comment_entity_id)
+      (item) => !commentAnalysisInDb.some((c) => c.facebookCommentID === item.facebookCommentID)
     )
 
-    // Create new analysis records in the database
     for (const comment of commentAnalysisToCreate) {
-      await prisma.comment_analysis.create({ data: comment })
+      const commentEntity = await prisma.facebook_comment_entity.findUnique({
+        where: { id: comment.facebookCommentID },
+      })
+
+      if (!commentEntity) {
+        const original = comments.find((c) => c.id === comment.facebookCommentID)
+        if (original) {
+          const entityData = {
+            commentContent: original.commentContent,
+            commentOwnerUsername: original.commentOwnerUsername,
+            postID: original.postID,
+            likesOfComment: original.likesOfComment ?? 0,
+            scrap_date: original.scrap_date,
+            comment_date: original.comment_date,
+            facebookCommentID: original.facebookCommentID,
+          }
+
+          await prisma.facebook_comment_entity.create({
+            data: entityData as unknown as FBCommentEntity,
+          })
+        }
+      }
+
+      await prisma.facebook_comment_analysis.create({
+        data: comment,
+      })
     }
+
     return commentAnalysis
   } catch (error) {
     console.error('Error in createCommentAnalysis:', error)
@@ -170,52 +173,59 @@ export const createCommentAnalysis = async (
 }
 
 /**
- * Obtiene todos los posts con sus comentarios y análisis asociados.
+ * Gets all posts with their comments and analysis associated.
  */
-export const getPostsWithCommentsAndAnalysis = async () => {
-  return prisma.instagram_post.findMany({
+export const getPostsWithCommentsAndAnalysis = async (categoryId: number) => {
+  return prisma.facebook_post.findMany({
     include: {
-      comment_entity: true,
-      comment_analysis: true,
+      facebook_comment_entity: true,
+      facebook_comment_analysis: true,
+      facebook_user_account: {
+        where: {
+          account_entity: {
+            account_category_id: categoryId,
+          },
+        },
+      },
     },
   })
 }
 
 /**
- * Actualiza el campo numberOfComments de un post.
+ * Updates the numberOfComments field of a post.
  */
 export const updatePostNumberOfComments = async (postId: number, realCount: number) => {
-  return prisma.instagram_post.update({
+  return prisma.facebook_post.update({
     where: { id: postId },
-    data: { numberOfComments: realCount },
+    data: { numberofcomments: realCount },
   })
 }
 
 /**
- * Obtiene los posts creados entre dos fechas, con condiciones específicas.
+ * Gets the posts created between two dates, with specific conditions.
  */
 export const getPostsByDateWithComments = async (startDate: Date, endDate: Date) => {
-  return prisma.instagram_post.findMany({
+  return prisma.facebook_post.findMany({
     where: {
-      postDate: {
+      postdate: {
         gte: startDate,
         lte: endDate,
       },
-      numberOfComments: { not: 0 },
-      post_analysis: {
-        post_topic_id: { not: 21 },
+      numberofcomments: { not: 0 },
+      facebook_post_analysis: {
+        postTopicId: { not: 21 },
       },
     },
   })
 }
 
 /**
- * Obtiene los comentarios cuya scrapDate sea mayor o igual a la fecha indicada.
+ * Gets the comments whose scrapDate is greater than or equal to the indicated date.
  */
 export const getCommentsByDate = async () => {
-  return prisma.comment_entity.findMany({
+  return prisma.facebook_comment_entity.findMany({
     where: {
-      comment_analysis: {
+      facebook_comment_analysis: {
         is: null,
       },
     },

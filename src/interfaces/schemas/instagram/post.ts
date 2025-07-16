@@ -20,14 +20,6 @@ export interface IGPostEntityWithRelations extends IGPostEntity {
   post_analysis?: IGPostAnalysis[]
 }
 
-export interface IGPostTopic {
-  id?: number
-  topic: string
-  description: string
-  emoji: string
-  account_category_id: number
-}
-
 export interface IGPostAnalysis {
   id?: number
   post_date: Date
@@ -42,10 +34,4 @@ export interface IGPostAnalysis {
   tags: string
   post_topic_id: number
   instagram_post_id: number
-}
-
-export interface IGPostTopicResponse {
-  topic: string
-  tags: string[]
-  id: number
 }

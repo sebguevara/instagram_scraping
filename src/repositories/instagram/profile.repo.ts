@@ -13,7 +13,7 @@ import { getUsername } from '@/utils'
  * Updates the accounts in the database.
  * @param {HistoryEntity[]} historyEntities - The history entities to update
  * @param {ApifyProfileResponse[]} dataApify - The data from Apify
- * @returns {Promise<InstagramUserAccountEntity[]>} The updated accounts
+ * @returns {Promise<IGUserAccountEntity[]>} The updated accounts
  */
 export const updateAccounts = async (
   historyEntities: IGHistoryEntity[],
