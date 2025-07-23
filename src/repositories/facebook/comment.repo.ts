@@ -9,6 +9,7 @@ import type {
   FBCommentEntity,
 } from '@/interfaces/schemas/facebook/comment'
 import { mapApifyFBCommentToComment } from '@/mappers/facebook/comment.mapper'
+import { getIdFromUrl } from '@/utils/facebook/get_id_from_url'
 
 /**
  * Creates comments for the given posts by fetching them from Apify,
@@ -18,24 +19,29 @@ import { mapApifyFBCommentToComment } from '@/mappers/facebook/comment.mapper'
  * @returns {Promise<CommentAnalysisEntity[]>} List of analyzed comments
  * @throws {Error} If no comment data is found or if an unexpected error occurs
  */
-export const createComments = async (
-  post: FBPostEntity
-): Promise<FBCommentAnalysisEntity | null> => {
+export const createComments = async (posts: FBPostEntity[]): Promise<FBCommentAnalysisEntity[]> => {
   try {
     const { defaultDatasetId } = await apifyClient.actor(APIFY_FB_ACTORS.COMMENT_ACTOR).call({
-      post_id: post.facebookPostID,
+      startUrls: posts.map((post) => ({
+        url: post.link,
+        method: 'GET',
+      })),
       ...COMMENT_FB_ACTOR_PARAMS,
     })
 
     const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
     const data = items as unknown as ApifyFBCommentResponse[]
-    if (data.length <= 0) return null
+    if (data.length <= 0) return []
 
     const dataFiltered = data.filter(
-      (item) => data.filter((other) => item.comment_id === other.comment_id).length === 1
+      (item) =>
+        data.filter((other) => getIdFromUrl(item.commentUrl) === getIdFromUrl(other.commentUrl))
+          .length === 1
     )
 
-    const commentsMapped = dataFiltered.map((item) => mapApifyFBCommentToComment(item, post.id!))
+    const commentsMapped = dataFiltered.map((item) =>
+      mapApifyFBCommentToComment(item, posts.find((post) => post.link === item.inputUrl)!.id!)
+    )
 
     const commentsInDb = await prisma.facebook_comment_entity.findMany({
       where: { facebookCommentID: { in: commentsMapped.map((item) => item.facebookCommentID!) } },
@@ -72,7 +78,7 @@ export const createComments = async (
     })) as unknown as FBCommentEntity[]
 
     const commentAnalysis = await createCommentAnalysis(allComments)
-    return commentAnalysis[0]
+    return commentAnalysis
   } catch (error) {
     console.error('Error in createComments:', error)
     throw new Error(
@@ -217,7 +223,7 @@ export const getPostsByDateWithComments = async (startDate: Date, endDate: Date)
       },
       numberofcomments: { not: 0 },
       facebook_post_analysis: {
-        postTopicId: { not: 21 },
+        post_topic_id: { not: 21 },
       },
     },
   })

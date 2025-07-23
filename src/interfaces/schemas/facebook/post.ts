@@ -1,7 +1,7 @@
 export interface FBPostEntity {
   id?: number
   facebookPostID: string
-  media: string
+  media: string | null
   title: string
   numberoflikes: number
   numberofshares: number

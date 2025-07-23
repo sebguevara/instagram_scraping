@@ -109,11 +109,9 @@ export const scrapCommentsByDate = async (
   }
 
   let totalComments = 0
-  for (const post of posts) {
-    const commentAnalysis = await createComments(post)
-    if (commentAnalysis) {
-      totalComments += 1
-    }
+  const commentAnalysis = await createComments(posts)
+  if (commentAnalysis.length > 0) {
+    totalComments += commentAnalysis.length
   }
 
   return {

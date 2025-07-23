@@ -16,9 +16,10 @@ export const COMMENT_IG_ACTOR_PARAMS = {
   maxItems: 10000,
 }
 
+// COMMENT_ACTOR: 'iQjl9u4oXg67cdRAj',
 export const APIFY_FB_ACTORS = {
   POST_ACTOR: 'KoJrdxJCTtpon81KY',
-  COMMENT_ACTOR: 'iQjl9u4oXg67cdRAj',
+  COMMENT_ACTOR: 'us5srxAYnsrkgUv2v',
   PROFILE_ACTOR: '4Hv5RhChiaDk6iwad',
 }
 
@@ -27,5 +28,6 @@ export const FB_POST_ACTOR_PARAMS = {
 }
 
 export const COMMENT_FB_ACTOR_PARAMS = {
-  maxResults: 5000,
+  includeNestedComments: true,
+  resultsLimit: 10000,
 }

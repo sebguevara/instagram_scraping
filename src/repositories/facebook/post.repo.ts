@@ -260,7 +260,7 @@ export const addCommentsToPostAnalysis = async (
   categoryId: number
 ): Promise<FBPostAnalysisEntity[]> => {
   const accounts = await getEnabledAccounts(categoryId)
-  const commentsAnalysis = await Promise.all(posts.map((post) => createComments(post)))
+  const commentsAnalysis = await createComments(posts)
 
   const postsAnalyzed = await prisma.facebook_post_analysis.findMany({
     where: { postID: { in: posts.map((item) => item.id!) } },

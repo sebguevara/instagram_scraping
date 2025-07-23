@@ -1,4 +1,5 @@
 import type { ApifyFBCommentResponse, FBCommentEntity } from '@/interfaces'
+import { getIdFromUrl } from '@/utils/facebook/get_id_from_url'
 
 /**
  * Maps Apify comment data to a CommentEntity object.
@@ -12,12 +13,12 @@ export const mapApifyFBCommentToComment = (
 ): FBCommentEntity => {
   return {
     postID: postId,
-    commentContent: item.message,
-    commentOwnerUsername: item.author.name,
-    likesOfComment: Number(item.reactions_count),
-    comment_date: new Date(item.created_time * 1000),
+    commentContent: item.text,
+    commentOwnerUsername: item.profileName,
+    likesOfComment: Number(item.likesCount),
+    comment_date: new Date(item.date),
     scrap_date: new Date(),
     primaryCommentID: undefined,
-    facebookCommentID: item.legacy_comment_id,
+    facebookCommentID: getIdFromUrl(item.commentUrl),
   } as FBCommentEntity
 }
