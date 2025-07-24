@@ -9,7 +9,6 @@ import type {
   FBCommentEntity,
 } from '@/interfaces/schemas/facebook/comment'
 import { mapApifyFBCommentToComment } from '@/mappers/facebook/comment.mapper'
-import { getIdFromUrl } from '@/utils/facebook/get_id_from_url'
 
 /**
  * Creates comments for the given posts by fetching them from Apify,

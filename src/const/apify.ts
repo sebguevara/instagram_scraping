@@ -29,5 +29,5 @@ export const FB_POST_ACTOR_PARAMS = {
 
 export const COMMENT_FB_ACTOR_PARAMS = {
   includeNestedComments: false,
-  resultsLimit: 25000,
+  resultsLimit: 10000,
 }
