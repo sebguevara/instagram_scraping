@@ -50,7 +50,7 @@ export const createHistoryProfiles = async (): Promise<{
   dataApify: ApifyFBProfileResponse[]
 }> => {
   const accounts = (await prisma.account_entity.findMany({
-    where: { enabled: 'TRUE', account_type_id: 2, account_category_id: 1 },
+    where: { enabled: 'TRUE', account_type_id: 2 },
   })) as unknown as AccountEntity[]
 
   const accountMap = new Map(accounts.map((account) => [account.accountURL, account.id]))

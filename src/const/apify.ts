@@ -24,10 +24,10 @@ export const APIFY_FB_ACTORS = {
 }
 
 export const FB_POST_ACTOR_PARAMS = {
-  resultsLimit: 2000,
+  resultsLimit: 4000,
 }
 
 export const COMMENT_FB_ACTOR_PARAMS = {
-  includeNestedComments: true,
-  resultsLimit: 10000,
+  includeNestedComments: false,
+  resultsLimit: 25000,
 }

@@ -33,12 +33,14 @@ export const createComments = async (posts: FBPostEntity[]): Promise<FBCommentAn
     const data = items as unknown as ApifyFBCommentResponse[]
     if (data.length <= 0) return []
 
-    const dataFiltered = data.filter(
-      (item) =>
-        data.filter((other) => getIdFromUrl(item.commentUrl) === getIdFromUrl(other.commentUrl))
-          .length === 1
+    let dataFiltered = data.filter((item) => item !== null && item !== undefined)
+
+    dataFiltered = dataFiltered.filter((item) => item.commentUrl && !item.error)
+    dataFiltered = dataFiltered.filter(
+      (item, index, self) => index === self.findIndex((t) => t.commentUrl === item.commentUrl)
     )
 
+    // map the data
     const commentsMapped = dataFiltered.map((item) =>
       mapApifyFBCommentToComment(item, posts.find((post) => post.link === item.inputUrl)!.id!)
     )

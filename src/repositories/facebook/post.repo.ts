@@ -138,8 +138,8 @@ export const getPosts = async (days: number, categoryId: number): Promise<FBPost
     ) as Map<string, number>
 
     if (accountsMap.size <= 0) return []
-    const { defaultDatasetId } = await getPostsFromApify(Array.from(accountsMap.keys()), days)
-    const { items } = await apifyClient.dataset(defaultDatasetId).listItems()
+    // const { defaultDatasetId } = await getPostsFromApify(Array.from(accountsMap.keys()), days)
+    const { items } = await apifyClient.dataset('yr0HVpbntVIPoCewa').listItems()
     const data = items as unknown as ApifyFBPostResponse[]
 
     if (data.length <= 0) return []

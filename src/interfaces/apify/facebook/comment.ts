@@ -36,6 +36,7 @@ export interface ApifyFBCommentResponse {
   pageAdLibrary: PageAdLibrary
   inputUrl: string
   profileUrl?: string
+  error?: string
 }
 
 interface PageAdLibrary {
