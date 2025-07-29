@@ -30,7 +30,7 @@ export const mapFBUserToPrisma = (
   profileData: ApifyFBProfileResponse
 ): FBUserAccountEntity => {
   return {
-    profilePictureURL: profileData.profilePhoto,
+    profilePictureURL: profileData.profilePictureUrl,
     followers: history.followers ?? -1,
     likes: history.likes ?? -1,
     publication_ammount: 0,
