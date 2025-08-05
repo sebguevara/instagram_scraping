@@ -35,8 +35,8 @@ export const createProfileHistoryController = async (
  */
 export const createPostCommentsController = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { days, categoryId } = req.query
-    const data = await scrapPostComments(Number(days), Number(categoryId))
+    const { days, categoryId, diff } = req.query
+    const data = await scrapPostComments(Number(days), Number(categoryId), diff === 'true')
     res.status(200).json(data)
   } catch (error: unknown) {
     console.error(error)

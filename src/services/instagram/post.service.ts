@@ -14,19 +14,20 @@ import {
  */
 export const scrapPostComments = async (
   days: number,
-  categoryId: number
+  categoryId: number,
+  diferencialAccounts: boolean = false
 ): Promise<{
   posts_created: number
   posts_analyzed: number
   status: string
 }> => {
-  const posts = await getPosts(days, categoryId)
+  const posts = await getPosts(days, categoryId, diferencialAccounts)
   if (posts.length <= 0) return { posts_created: 0, posts_analyzed: 0, status: 'success' }
 
   console.log(posts.length)
-  await analyzePosts(posts, categoryId)
+  await analyzePosts(posts, categoryId, diferencialAccounts)
 
-  const postsFull = await addCommentsToPostAnalysis(posts, categoryId)
+  const postsFull = await addCommentsToPostAnalysis(posts, categoryId, diferencialAccounts)
 
   console.log('Done')
   return {
@@ -44,9 +45,10 @@ export const scrapPostComments = async (
  */
 export const scrapJustPosts = async (
   days: number,
-  categoryId: number
+  categoryId: number,
+  diferencialAccounts: boolean = false
 ): Promise<{ posts: number; status: string }> => {
-  const posts = await getPosts(days, categoryId)
+  const posts = await getPosts(days, categoryId, diferencialAccounts)
   if (posts.length <= 0) {
     return {
       posts: 0,
@@ -66,9 +68,10 @@ export const scrapJustPosts = async (
  * @throws {Error} If no posts are found
  */
 export const createPostsWithoutAnalysis = async (
-  categoryId: number
+  categoryId: number,
+  diferencialAccounts: boolean = false
 ): Promise<{ posts: number; status: string }> => {
-  const postsToAnalyze = await analyzePostsWithCommentsAnalyzed(categoryId)
+  const postsToAnalyze = await analyzePostsWithCommentsAnalyzed(categoryId, diferencialAccounts)
   return {
     posts: postsToAnalyze.length,
     status: 'success',

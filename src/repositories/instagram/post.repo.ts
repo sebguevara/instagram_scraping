@@ -26,6 +26,15 @@ const getEnabledAccounts = async (categoryId: number): Promise<AccountEntityWith
   return accounts as unknown as AccountEntityWithRelations[]
 }
 
+const getDiferencialAccounts = async (): Promise<AccountEntityWithRelations[]> => {
+  const accounts = await prisma.account_entity.findMany({
+    where: { enabled: 'TRUE', id: { in: [19, 22, 42, 43] } },
+    include: { instagram_user_account: true },
+  })
+
+  return accounts as unknown as AccountEntityWithRelations[]
+}
+
 /**
  * Retrieves available topics from the database.
  * @returns {Promise<PostTopic[]>} List of available topics
@@ -133,9 +142,15 @@ const mapAndFilterApifyPosts = async (
  * @returns {Promise<PostEntity[]>} List of posts obtained and stored in the database
  * @throws {Error} If no post data is found or if an unexpected error occurs
  */
-export const getPosts = async (days: number, categoryId: number): Promise<IGPostEntity[]> => {
+export const getPosts = async (
+  days: number,
+  categoryId: number,
+  diferencialAccounts: boolean = false
+): Promise<IGPostEntity[]> => {
   try {
-    const accounts = await getEnabledAccounts(categoryId)
+    const accounts = diferencialAccounts
+      ? await getDiferencialAccounts()
+      : await getEnabledAccounts(categoryId)
     const accountsMap = new Map(
       accounts.map((account) => [
         getUsername(account.accountURL),
@@ -185,13 +200,16 @@ export const getPosts = async (days: number, categoryId: number): Promise<IGPost
  */
 export const analyzePosts = async (
   posts: IGPostEntity[],
-  categoryId: number
+  categoryId: number,
+  diferencialAccounts: boolean = false
 ): Promise<IGPostAnalysis[]> => {
   try {
     const topics = await getAvailableTopics()
     if (topics.length <= 0) return []
 
-    const accounts = await getEnabledAccounts(categoryId)
+    const accounts = diferencialAccounts
+      ? await getDiferencialAccounts()
+      : await getEnabledAccounts(categoryId)
 
     const limit = pLimit(20)
     const postsAnalysis = (await Promise.all(
@@ -264,9 +282,13 @@ export const analyzePosts = async (
  */
 export const addCommentsToPostAnalysis = async (
   posts: IGPostEntity[],
-  categoryId: number
+  categoryId: number,
+  diferencialAccounts: boolean = false
 ): Promise<IGPostAnalysis[]> => {
-  const accounts = await getEnabledAccounts(categoryId)
+  const accounts = diferencialAccounts
+    ? await getDiferencialAccounts()
+    : await getEnabledAccounts(categoryId)
+
   const commentsAnalysis = await createComments(posts)
 
   // get postsanalyze by posts
@@ -354,11 +376,14 @@ export const getPostsToAnalyze = async (): Promise<IGPostEntity[]> => {
  * @returns {Promise<PostEntity[]>} List of posts that have not been analyzed yet
  */
 export const analyzePostsWithCommentsAnalyzed = async (
-  categoryId: number
+  categoryId: number,
+  diferencialAccounts: boolean = false
 ): Promise<IGPostEntity[]> => {
   const postsToAnalyze = await getPostsToAnalyze()
   const topics = await getAvailableTopics()
-  const accounts = await getEnabledAccounts(categoryId)
+  const accounts = diferencialAccounts
+    ? await getDiferencialAccounts()
+    : await getEnabledAccounts(categoryId)
 
   if (postsToAnalyze.length <= 0) return []
 
@@ -391,7 +416,7 @@ export const analyzePostsWithCommentsAnalyzed = async (
     return !postAnalysis
   })
 
-  await addCommentsToPostAnalysis(postsFiltered, categoryId)
+  await addCommentsToPostAnalysis(postsFiltered, categoryId, diferencialAccounts)
   return postsFiltered
 }
 

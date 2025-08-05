@@ -93,8 +93,7 @@ export const createCommentAnalysis = async (
   comments: IGCommentEntity[]
 ): Promise<IGCommentAnalysis[]> => {
   try {
-    const limit = pLimit(20)
-
+    const limit = pLimit(10)
     const commentAnalysis = (await Promise.all(
       comments.map((comment) =>
         limit(async () => {
