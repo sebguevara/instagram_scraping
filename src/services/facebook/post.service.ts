@@ -24,13 +24,16 @@ export const scrapFBPostComments = async (
   if (posts.length <= 0) return { posts_created: 0, posts_analyzed: 0, status: 'success' }
 
   console.log(posts.length)
-  await analyzePosts(posts, categoryId)
+  const postsAnalyzed = await analyzePosts(posts, categoryId)
 
-  const postsFull = await addCommentsToPostAnalysis(posts, categoryId)
+  const postsFiltered = posts.filter((item) =>
+    postsAnalyzed.some((post) => post.postID === item.id && post.post_topic_id !== 21)
+  )
 
+  const postsFull = await addCommentsToPostAnalysis(postsFiltered, categoryId)
   console.log('Done')
   return {
-    posts_created: posts.length,
+    posts_created: postsFiltered.length,
     posts_analyzed: postsFull.length,
     status: 'success',
   }
