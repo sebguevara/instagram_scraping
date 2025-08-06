@@ -24,14 +24,17 @@ export const scrapPostComments = async (
   const posts = await getPosts(days, categoryId, diferencialAccounts)
   if (posts.length <= 0) return { posts_created: 0, posts_analyzed: 0, status: 'success' }
 
-  console.log(posts.length)
-  await analyzePosts(posts, categoryId, diferencialAccounts)
+  const postsAnalyzed = await analyzePosts(posts, categoryId, diferencialAccounts)
 
-  const postsFull = await addCommentsToPostAnalysis(posts, categoryId, diferencialAccounts)
+  const postsFiltered = posts.filter((item) =>
+    postsAnalyzed.some((post) => post.instagram_post_id === item.id && post.post_topic_id !== 21)
+  )
+
+  const postsFull = await addCommentsToPostAnalysis(postsFiltered, categoryId, diferencialAccounts)
 
   console.log('Done')
   return {
-    posts_created: posts.length,
+    posts_created: postsFiltered.length,
     posts_analyzed: postsFull.length,
     status: 'success',
   }
