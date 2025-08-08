@@ -21,7 +21,6 @@ model account_entity {
   facebook_user_account    facebook_user_account?
   history_entity           history_entity[]
   instagram_user_account   instagram_user_account?
-  overall_account_analysis overall_account_analysis?
 
   @@index([account_category_id], map: "idx_account_entity_account_category_id")
   @@index([account_type_id], map: "idx_account_entity_account_type_id")
@@ -31,15 +30,6 @@ model account_entity {
   @@index([enabled, account_category_id], map: "idx_account_entity_enabled_category")
   @@index([id], map: "idx_account_entity_id")
   @@index([account_category_id, enabled], map: "idx_account_entity_category_enabled")
-}
-
-model avoid_actions {
-  id               Int            @id @default(autoincrement())
-  post_analysis_id Int?
-  avoid_action     String?
-  createdat        DateTime?      @default(now()) @db.Timestamp(6)
-  updatedat        DateTime?      @default(now()) @db.Timestamp(6)
-  post_analysis    post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model comment_analysis {
@@ -140,51 +130,23 @@ model instagram_user_account {
   @@index([id], map: "idx_instagram_user_account_id")
 }
 
-model keep_doing_actions {
-  id                Int            @id @default(autoincrement())
-  post_analysis_id  Int?
-  keep_doing_action String?
-  createdat         DateTime?      @default(now()) @db.Timestamp(6)
-  updatedat         DateTime?      @default(now()) @db.Timestamp(6)
-  post_analysis     post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-model overall_account_analysis {
-  id                 Int             @id @default(autoincrement())
-  account_entity_id  Int?            @unique(map: "unique_account_entity_id")
-  postanaamount      Int?
-  likesaverage       Decimal?        @db.Decimal
-  commentaverage     Decimal?        @db.Decimal
-  poscommentsaverage Decimal?        @db.Decimal
-  negcommentsaverage Decimal?        @db.Decimal
-  engagementrate     Decimal?        @db.Decimal
-  createdat          DateTime?       @default(now()) @db.Timestamp(6)
-  updatedat          DateTime?       @default(now()) @db.Timestamp(6)
-  account_entity     account_entity? @relation(fields: [account_entity_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([account_entity_id], map: "idx_overall_account_analysis_account_id")
-}
-
 /// This model contains an index with non-default null sort order and requires additional setup for migrations. Visit https://pris.ly/d/default-index-null-ordering for more info.
 model post_analysis {
-  id                        Int                  @id @default(autoincrement())
+  id                        Int             @id @default(autoincrement())
   post_topic_id             Int?
-  instagram_post_id         Int?                 @unique(map: "unique_instagram_post_id")
-  post_date                 DateTime?            @db.Timestamp(6)
+  instagram_post_id         Int?            @unique(map: "unique_instagram_post_id")
+  post_date                 DateTime?       @db.Timestamp(6)
   comments_amount           BigInt?
   ammount_negative_comments Int?
   ammount_positive_comments Int?
   ammount_neutral_comments  Int?
-  general_emotion           String?
-  createdat                 DateTime?            @default(now()) @db.Timestamp(6)
-  updatedat                 DateTime?            @default(now()) @db.Timestamp(6)
-  post_engagement           Decimal?             @db.Decimal
+  createdat                 DateTime?       @default(now()) @db.Timestamp(6)
+  updatedat                 DateTime?       @default(now()) @db.Timestamp(6)
+  post_engagement           Decimal?        @db.Decimal
   tags                      String?
-  avoid_actions             avoid_actions[]
-  keep_doing_actions        keep_doing_actions[]
-  instagram_post            instagram_post?      @relation(fields: [instagram_post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  post_topic                post_topic?          @relation(fields: [post_topic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  recommendations           recommendations[]
+  cache_analysis            Json?
+  instagram_post            instagram_post? @relation(fields: [instagram_post_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  post_topic                post_topic?     @relation(fields: [post_topic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([instagram_post_id], map: "idx_post_analysis_instagram_post_id")
   @@index([post_engagement(sort: Desc)], map: "idx_post_analysis_engagement")
@@ -205,15 +167,6 @@ model post_topic {
 
   @@index([account_category_id], map: "idx_post_topic_account_category_id")
   @@index([id], map: "idx_post_topic_id")
-}
-
-model recommendations {
-  id               Int            @id @default(autoincrement())
-  post_analysis_id Int?
-  recommendation   String?
-  createdat        DateTime?      @default(now()) @db.Timestamp(6)
-  updatedat        DateTime?      @default(now()) @db.Timestamp(6)
-  post_analysis    post_analysis? @relation(fields: [post_analysis_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model facebook_post {
@@ -270,8 +223,8 @@ model facebook_comment_analysis {
   request                 String?
   analyzedAt              DateTime?                @default(dbgenerated("('now'::text)::date")) @db.Date
   updatedAt               DateTime?                @default(dbgenerated("('now'::text)::date")) @db.Date
-  postID                  Int?
   commentID               Int?                     @unique
+  postID                  Int?
   facebook_comment_entity facebook_comment_entity? @relation(fields: [commentID], references: [id], onDelete: NoAction, onUpdate: NoAction)
   facebook_post           facebook_post?           @relation(fields: [postID], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
@@ -294,7 +247,6 @@ model facebook_comment_entity {
 
 model facebook_post_analysis {
   id                      Int            @id @default(autoincrement())
-  post_topic_id           Int?
   commentsAmmount         Int?
   ammountNegativeComments Int?
   ammountPositiveComments Int?
@@ -303,8 +255,10 @@ model facebook_post_analysis {
   postEngagement          Float?
   createdAt               DateTime?      @default(now()) @db.Timestamp(6)
   updatedAt               DateTime?      @default(now()) @db.Timestamp(6)
-  tags                    String?
   postID                  Int?           @unique
+  post_topic_id           Int?
+  tags                    String?
+  cache_analysis          Json?
   facebook_post           facebook_post? @relation(fields: [postID], references: [id], onDelete: NoAction, onUpdate: NoAction)
   post_topic              post_topic?    @relation(fields: [post_topic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
