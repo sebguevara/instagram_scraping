@@ -66,7 +66,6 @@ const updateExistingPosts = async (
 const createNewPosts = async (postsToCreate: FBPostEntity[]): Promise<void> => {
   const existingPosts = (await prisma.facebook_post.findMany({
     where: { facebookPostID: { in: postsToCreate.map((p) => p.facebookPostID!) } },
-    select: { facebookPostID: true },
   })) as unknown as FBPostEntity[]
   const existingLinks = new Set(existingPosts.map((p) => p.facebookPostID))
 
@@ -155,13 +154,21 @@ export const getPosts = async (days: number, categoryId: number): Promise<FBPost
       postsToCreate = postsMapped.filter((item) => !posts.some((post) => post.link === item.link))
     }
 
-    await createNewPosts(postsToCreate)
-
     const postsFromDb = (await prisma.facebook_post.findMany({
       where: { link: { in: postsMapped.map((item) => item.link) } },
     })) as unknown as FBPostEntity[]
 
-    return postsFromDb
+    const postsToCreateFiltered = postsToCreate.filter(
+      (item) => !postsFromDb.some((post) => post.link === item.link)
+    )
+
+    await createNewPosts(postsToCreateFiltered)
+
+    const dbData = await prisma.facebook_post.findMany({
+      where: { link: { in: postsMapped.map((item) => item.link) } },
+    })
+
+    return dbData as unknown as FBPostEntity[]
   } catch (error) {
     console.error('Error in getPosts:', error)
     throw new Error(
