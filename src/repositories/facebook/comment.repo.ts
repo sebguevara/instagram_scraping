@@ -39,38 +39,61 @@ export const createComments = async (posts: FBPostEntity[]): Promise<FBCommentAn
       (item, index, self) => index === self.findIndex((t) => t.commentUrl === item.commentUrl)
     )
 
-    // map the data
-    const commentsMapped = dataFiltered.map((item) =>
-      mapApifyFBCommentToComment(item, posts.find((post) => post.link === item.inputUrl)!.id!)
-    )
-
-    const commentsInDb = await prisma.facebook_comment_entity.findMany({
-      where: { facebookCommentID: { in: commentsMapped.map((item) => item.facebookCommentID!) } },
-    })
-
-    for (const comment of commentsInDb) {
-      const commentData = commentsMapped.find(
-        (item) => item.facebookCommentID === comment.facebookCommentID
-      )
-      if (!commentData) continue
-      await prisma.facebook_comment_entity.update({
-        where: { id: comment.id },
-        data: commentData,
+    const commentsMapped = dataFiltered
+      .map((item) => {
+        const post = posts.find((p) => p.link === item.inputUrl)
+        if (!post || !post.id) {
+          console.warn(`Post no encontrado para la URL: ${item.inputUrl}. Omitiendo comentario.`)
+          return null
+        }
+        return mapApifyFBCommentToComment(item, post.id)
       })
-    }
+      .filter((comment): comment is NonNullable<typeof comment> => comment !== null)
 
-    const commentsToCreate = commentsMapped.filter(
-      (item) =>
-        !commentsInDb.some((comment) => comment.facebookCommentID === item.facebookCommentID)
-    )
+    for (const commentData of commentsMapped) {
+      if (
+        !commentData.facebookCommentID ||
+        !commentData.commentContent ||
+        !commentData.commentOwnerUsername
+      ) {
+        continue
+      }
 
-    const commentsToCreateFiltered = commentsToCreate.filter(
-      (item) => item.commentContent && item.commentOwnerUsername
-    )
+      try {
+        const { facebookCommentID, ...updateData } = commentData
 
-    if (commentsToCreateFiltered.length > 0) {
-      for (const comment of commentsToCreateFiltered) {
-        await prisma.facebook_comment_entity.create({ data: comment })
+        const validUpdateData = {
+          postID: updateData.postID,
+          primaryCommentID: updateData.primaryCommentID,
+          commentContent: updateData.commentContent,
+          commentOwnerUsername: updateData.commentOwnerUsername,
+          likesOfComment: updateData.likesOfComment,
+          scrap_date: updateData.scrap_date,
+          comment_date: updateData.comment_date,
+        }
+
+        await prisma.facebook_comment_entity.update({
+          where: { facebookCommentID: facebookCommentID },
+          data: validUpdateData,
+        })
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === 'P2025') {
+          try {
+            await prisma.facebook_comment_entity.create({
+              data: commentData,
+            })
+          } catch (createError) {
+            console.error('----------- ERROR AL CREAR (después de un update fallido) -----------')
+            console.error('DATOS:', JSON.stringify(commentData, null, 2))
+            console.error('ERROR DE CREACIÓN:', createError)
+            throw new Error('Fallo en la creación del registro.')
+          }
+        } else {
+          console.error('----------- ERROR INESPERADO AL ACTUALIZAR -----------')
+          console.error('DATOS:', JSON.stringify(commentData, null, 2))
+          console.error('ERROR DE ACTUALIZACIÓN:', error)
+          throw new Error('Fallo inesperado durante la actualización.')
+        }
       }
     }
 
@@ -102,79 +125,70 @@ export const createCommentAnalysis = async (
   try {
     const limit = pLimit(20)
 
-    const commentAnalysis = (await Promise.all(
+    const analysisResults = await Promise.all(
       comments.map((comment) =>
         limit(async () => {
-          const commentAnalysis = await getAnalyzedComment(comment.commentContent)
-          return {
-            commentID: comment.id!,
-            postID: comment.postID,
-            emotion: commentAnalysis.emotion,
-            topic: commentAnalysis.topic,
-            request: commentAnalysis.request,
-            analyzedAt: new Date(),
-            updatedAt: new Date(),
+          try {
+            const analysisResult = await getAnalyzedComment(comment.commentContent)
+            return {
+              commentID: comment.id!,
+              postID: comment.postID,
+              emotion: analysisResult.emotion,
+              topic: analysisResult.topic,
+              request: analysisResult.request,
+              analyzedAt: new Date(),
+              updatedAt: new Date(),
+            }
+          } catch (e) {
+            console.error(
+              `Falló el análisis para el comentario con ID: ${comment.id}. Contenido: "${comment.commentContent}"`,
+              e
+            )
+            return null
           }
         })
       )
-    )) as FBCommentAnalysisEntity[]
+    )
 
-    const commentAnalysisInDb = await prisma.facebook_comment_analysis.findMany({
+    const newAnalyses = analysisResults.filter(Boolean) as FBCommentAnalysisEntity[]
+
+    if (newAnalyses.length === 0) {
+      console.log('No se pudo analizar ningún comentario con éxito.')
+      return []
+    }
+
+    const existingAnalyses = await prisma.facebook_comment_analysis.findMany({
       where: {
-        commentID: {
-          in: commentAnalysis.map((item) => item.commentID),
-        },
+        commentID: { in: newAnalyses.map((item) => item.commentID) },
       },
     })
 
-    const commentAnalysisToUpdate = commentAnalysisInDb.filter((item) =>
-      commentAnalysis.some((c) => c.id === item.id)
+    const analysesToCreate = newAnalyses.filter(
+      (newAnalysis) =>
+        !existingAnalyses.some((existing) => existing.commentID === newAnalysis.commentID)
     )
 
-    for (const existing of commentAnalysisToUpdate) {
-      const updateData = commentAnalysis.find((c) => c.commentID === existing.commentID)
-      if (!updateData) continue
-
-      await prisma.comment_analysis.update({
-        where: { id: existing.id },
-        data: updateData,
-      })
-    }
-
-    const commentAnalysisToCreate = commentAnalysis.filter(
-      (item) => !commentAnalysisInDb.some((c) => c.commentID === item.commentID)
+    const analysesToUpdate = newAnalyses.filter((newAnalysis) =>
+      existingAnalyses.some((existing) => existing.commentID === newAnalysis.commentID)
     )
 
-    for (const comment of commentAnalysisToCreate) {
-      const commentEntity = await prisma.facebook_comment_entity.findUnique({
-        where: { id: comment.commentID },
-      })
-
-      if (!commentEntity) {
-        const original = comments.find((c) => c.id === comment.commentID)
-        if (original) {
-          const entityData = {
-            commentContent: original.commentContent,
-            commentOwnerUsername: original.commentOwnerUsername,
-            postID: original.postID,
-            likesOfComment: original.likesOfComment ?? 0,
-            scrap_date: original.scrap_date,
-            comment_date: original.comment_date,
-            commentID: original.id!,
-          }
-
-          await prisma.facebook_comment_entity.create({
-            data: entityData as unknown as FBCommentEntity,
-          })
-        }
+    for (const analysisData of analysesToUpdate) {
+      const existing = existingAnalyses.find((e) => e.commentID === analysisData.commentID)
+      if (existing) {
+        await prisma.facebook_comment_analysis.update({
+          where: { id: existing.id },
+          data: analysisData,
+        })
       }
+    }
 
-      await prisma.facebook_comment_analysis.create({
-        data: comment,
+    if (analysesToCreate.length > 0) {
+      await prisma.facebook_comment_analysis.createMany({
+        data: analysesToCreate,
       })
     }
 
-    return commentAnalysis
+    return newAnalyses
   } catch (error) {
     console.error('Error in createCommentAnalysis:', error)
     throw new Error(
